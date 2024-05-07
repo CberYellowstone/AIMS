@@ -4,6 +4,7 @@
 #include <QString>
 #include <QtSql/QSqlDatabase>
 #include <QList>
+#include <QMap>
 
 typedef int Status;
 #define Success 0
@@ -21,7 +22,18 @@ public:
     QString PhoneNumber; // 学生电话号码
     QString DormitoryArea; // 学生所在宿舍区
     QString DormitoryNum; // 学生宿舍号码
-    QVector<QString> ChosenLessons; // 学生已选课程，课程编号
+    QVector<QString> ChosenLessons; // 学生已选课程编号
+};
+
+class Lesson {
+public:
+    QString Id; // 课程编号
+    QString LessonName; // 课程名称
+    QString TeacherId; // 课程教师编号
+    int LessonCredits; // 课程学分
+    QString LessonArea; // 课程上课区域
+    QMap<QString, QVector<QString>> LessonTimeAndLocations; // 课程上课时间和地点
+    QVector<QString> LessonStudents; // 选课学生学号
 };
 
 namespace Database {
@@ -34,10 +46,24 @@ namespace Database {
 
         static Status updateStudent(const Student &student);
 
+        static Status updateLessonInformation(const Lesson &lesson);
+
+        static Status getLessonById(const QString &id, Lesson &lesson);
+
     private:
         QSqlDatabase db;
 
-        Status initializeDatabase();
+        static Status initializeDatabase();
+
+        static bool ifTableExist(const QString &tableName);
+
+        static Status createTableIfNotExists(const QString &tableName);
+
+        static Status updateTeachingLessons(const QString &teacherId, const QVector<QString> &teachingLessons);
+
+        static Status addTeachingLesson(const QString &teacherId, const QString &lessonId);
+
+        static Status deleteTeachingLesson(const QString &teacherId, const QString &lessonId);
     };
 
 } // Database

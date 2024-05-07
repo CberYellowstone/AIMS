@@ -69,10 +69,6 @@ void addRoute(QHttpServer &httpServer) {
                          student.PhoneNumber = jsonObject["PhoneNumber"].toString();
                          student.DormitoryArea = jsonObject["DormitoryArea"].toString();
                          student.DormitoryNum = jsonObject["DormitoryNum"].toString();
-                         QJsonArray chosenLessonsArray = jsonObject["ChosenLessons"].toArray();
-                         for (const auto &lesson: chosenLessonsArray) {
-                             student.ChosenLessons.append(lesson.toString());
-                         }
 
                          // 更新数据库
                          Status status = Database::database::updateStudent(student);
@@ -92,6 +88,100 @@ void addRoute(QHttpServer &httpServer) {
                          QHttpServerResponse response("application/json", responseString.toUtf8());
                          return response;
                      });
+    httpServer.route("/api/updateLessonInformation/", QHttpServerRequest::Method::Post,
+                     [](const QHttpServerRequest &request) {
+                         // 获取请求的body
+                         QByteArray body = request.body();
+
+                         // 解析body为一个QJsonObject
+                         QJsonDocument doc = QJsonDocument::fromJson(body);
+                         QJsonObject jsonObject = doc.object();
+
+                         // 从QJsonObject中获取课程的信息
+                         Lesson lesson;
+                         lesson.Id = jsonObject["Id"].toString();
+                         lesson.LessonName = jsonObject["LessonName"].toString();
+                         lesson.TeacherId = jsonObject["TeacherId"].toString();
+                         lesson.LessonCredits = jsonObject["LessonCredits"].toInt();
+                         lesson.LessonArea = jsonObject["LessonArea"].toString();
+
+                         //jsonObject["LessonTimeAndLocations"]结构如下: {"1-6周":["40809节","4501"],"7-10周":["30609节","4601"]}
+                         QJsonObject lessonTimeAndLocations = jsonObject["LessonTimeAndLocations"].toObject();
+                         QMap<QString, QVector<QString>> timeAndLocationsMap;
+
+                         for (auto it = lessonTimeAndLocations.begin(); it != lessonTimeAndLocations.end(); ++it) {
+                             QJsonArray timeAndLocationArray = it.value().toArray();
+                             QVector<QString> timeAndLocation;
+                             for (auto &&i: timeAndLocationArray) {
+                                 timeAndLocation.append(i.toString());
+                             }
+                             timeAndLocationsMap.insert(it.key(), timeAndLocation);
+                         }
+                         lesson.LessonTimeAndLocations = timeAndLocationsMap;
+
+
+                         QJsonArray lessonStudentsArray = jsonObject["LessonStudents"].toArray();
+                         for (const auto &lessonStudent: lessonStudentsArray) {
+                             lesson.LessonStudents.append(lessonStudent.toString());
+                         }
+
+                         // 更新数据库
+                         Status status = Database::database::updateLessonInformation(lesson);
+
+                         // 创建一个JSON响应
+                         QJsonObject responseJsonObject;
+                         if (status == Success) {
+                             responseJsonObject["success"] = true;
+                             responseJsonObject["message"] = "Lesson information updated successfully";
+                         } else {
+                             responseJsonObject["success"] = false;
+                             responseJsonObject["message"] = "Failed to update lesson information";
+                         }
+                         QJsonDocument responseDoc(responseJsonObject);
+                         QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+                         QHttpServerResponse response("application/json", responseString.toUtf8());
+                         return response;
+                     });
+
+    httpServer.route("/api/getLessonInformation/", [](const QString &lessonId) {
+        Lesson lesson;
+        Status status = Database::database::getLessonById(lessonId, lesson);
+        QJsonObject jsonObject;
+        if (status == Success) {
+            jsonObject["success"] = true;
+            jsonObject["Id"] = lesson.Id;
+            jsonObject["LessonName"] = lesson.LessonName;
+            jsonObject["TeacherId"] = lesson.TeacherId;
+            jsonObject["LessonCredits"] = lesson.LessonCredits;
+            jsonObject["LessonArea"] = lesson.LessonArea;
+
+            QJsonObject lessonTimeAndLocationsObj;
+            for (auto it = lesson.LessonTimeAndLocations.cbegin(); it != lesson.LessonTimeAndLocations.cend(); ++it) {
+                QJsonArray jsonArray;
+                for (const auto &str: it.value()) {
+                    jsonArray.append(QJsonValue(str));
+                }
+                lessonTimeAndLocationsObj.insert(it.key(), jsonArray);
+            }
+            jsonObject["LessonTimeAndLocations"] = lessonTimeAndLocationsObj;
+
+            QJsonArray lessonStudentsArray;
+            for (const auto &lessonStudent: lesson.LessonStudents) {
+                lessonStudentsArray.append(lessonStudent);
+            }
+            jsonObject["LessonStudents"] = lessonStudentsArray;
+        } else {
+            jsonObject["success"] = false;
+            jsonObject["message"] = "Failed to get lesson information";
+        }
+        QJsonDocument doc(jsonObject);
+        QString jsonString = doc.toJson(QJsonDocument::Compact);
+
+        // 创建一个JSON响应
+        QHttpServerResponse response("application/json", jsonString.toUtf8());
+        return response;
+    });
 }
 
 
