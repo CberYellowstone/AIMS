@@ -9,6 +9,21 @@
 typedef int Status;
 #define Success 0
 #define ERROR 1
+#define NOT_FOUND 2
+#define DUPLICATE 3
+#define INVALID 4
+#define NO_PERMISSION 5
+#define RELATION_ERROR 6
+#define TEACHER_NOT_FOUND 7
+#define STUDENT_NOT_FOUND 8
+#define LESSON_NOT_FOUND 9
+
+#define TEACHER 0
+#define STUDENT 1
+
+#define NOT_RETAKE 0
+#define RETAKE 1
+#define RETAKEN 2
 
 class Student {
 public:
@@ -31,9 +46,26 @@ public:
     QString LessonName; // 课程名称
     QString TeacherId; // 课程教师编号
     int LessonCredits; // 课程学分
+    QString LessonSemester; // 课程学期
     QString LessonArea; // 课程上课区域
     QMap<QString, QVector<QString>> LessonTimeAndLocations; // 课程上课时间和地点
     QVector<QString> LessonStudents; // 选课学生学号
+};
+
+class Teacher {
+public:
+    QString Id; // 教师编号
+    QString Name; // 教师
+    QVector<QString> TeachingLessons; // 教师教授课程编号
+};
+
+class Auth {
+public:
+    int Id; // 用户编号
+    QString Account; // 用户账号
+    QString Secret; // 用户密钥
+    int AccountType; // 用户类型，0为教师，1为学生
+    int IsSuper; // 是否为超级用户，0为否，1为是
 };
 
 namespace Database {
@@ -42,28 +74,66 @@ namespace Database {
     public:
         explicit database(const QString &path);
 
-        static Status getStudentById(const QString &id, Student &student);
+        Status getStudentById(const QString &id, Student &student);
 
-        static Status updateStudent(const Student &student);
+        Status updateStudent(const Student &student);
 
-        static Status updateLessonInformation(const Lesson &lesson);
+        Status updateLessonInformation(const Lesson &lesson);
 
-        static Status getLessonById(const QString &id, Lesson &lesson);
+        Status getLessonById(const QString &id, Lesson &lesson);
+
+        Status getTeacherById(const QString &id, Teacher &teacher);
+
+        Status updateTeacher(const Teacher &teacher);
+
+        Status updateTeachingLessons(const QString &teacherId, const QVector<QString> &teachingLessons);
+
+        Status addTeachingLesson(const QString &teacherId, const QString &lessonId);
+
+        Status deleteStudent(const QString &id);
+
+        Status listStudents(QVector<Student> &students, int maximum, int pageNum);
+
+        int getStudentCount();
+
+        Status listTeachers(QVector<Teacher> &teachers, int maximum, int pageNum);
+
+        int getTeacherCount();
+
+        int getLessonCount();
+
+        Status listLessons(QVector<Lesson> &lessons, int maximum, int pageNum);
 
     private:
         QSqlDatabase db;
 
-        static Status initializeDatabase();
+        Status initializeDatabase();
 
-        static bool ifTableExist(const QString &tableName);
+        bool ifTableExist(const QString &tableName);
 
-        static Status createTableIfNotExists(const QString &tableName);
+        Status createTableIfNotExists(const QString &tableName);
 
-        static Status updateTeachingLessons(const QString &teacherId, const QVector<QString> &teachingLessons);
+        Status deleteTeachingLesson(const QString &teacherId, const QString &lessonId);
 
-        static Status addTeachingLesson(const QString &teacherId, const QString &lessonId);
+        Status deleteLesson(const QString &id);
 
-        static Status deleteTeachingLesson(const QString &teacherId, const QString &lessonId);
+        Status deleteTeacher(const QString &id);
+
+        Status getStudentByClass(const QString &studentClass, QVector<Student> &students);
+
+        Status checkDatabase();
+
+        Status deleteChosenLesson(const QString &studentId, const QString &lessonId);
+
+        int getAuthCount();
+
+        Status ifTeacherExist(const QString &teacherId);
+
+        Status listAuths(QVector<Auth> &auths, int maximum, int pageNum);
+
+        Status createAccount(const Auth &auth);
+
+        Status updateAccount(const Auth &auth);
     };
 
 } // Database
