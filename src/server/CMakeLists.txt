@@ -1,6 +1,5 @@
 qt_add_executable(Server
         main.cpp
-        ../client/mainapp.ui
         database.cpp
         database.h
 )
@@ -9,6 +8,7 @@ target_link_libraries(Server PRIVATE
         Qt::Core
         Qt::Sql
         Qt::HttpServer
+        jwt-cpp::jwt-cpp
 )
 
 set_target_properties(Server PROPERTIES
