@@ -1,14 +1,201 @@
+#include "database.h"
 #include <QCoreApplication>
 #include <QHttpServer>
-#include "database.h"
 #include <QCommandLineParser>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include "jwt-cpp/jwt.h"
 
 #define SCHEME "http"
 #define HOST "127.0.0.1"
 #define PORT 49425
+
+#define SECRET_KEY "AIMS"
+#define ISSUER "AIMS"
+
+Auth verifyJwt(const QHttpServerRequest &request) {
+    // 从header中获取JWT
+    QString jwtString;
+    const auto headers = request.headers();
+    for (const auto &header: headers) {
+        if (header.first == "Authorization") {
+            jwtString = header.second;
+            break;
+        }
+    }
+
+    // 检查是否找到了"Authorization"头
+    if (jwtString.isEmpty()) {
+        // 如果没有找到，返回所有属性都为-1的Auth对象
+        return Auth{"", "", -1, -1};
+    }
+
+    // 使用jwt-cpp库解码JWT
+    auto decodedToken = jwt::decode(jwtString.toStdString());
+
+    // 验证JWT
+    auto verifier = jwt::verify()
+            .allow_algorithm(jwt::algorithm::hs256{SECRET_KEY})
+            .with_issuer(ISSUER);
+
+    try {
+        verifier.verify(decodedToken);
+    } catch (const jwt::error::token_verification_exception &e) {
+        // 如果验证失败，返回所有属性都为-1的Auth对象
+        return Auth{"", "", -1, -1};
+    }
+
+    // 从JWT的payload中获取Auth信息
+    Auth auth;
+    auth.Account = QString::fromStdString(decodedToken.get_payload_claim("Account").as_string());
+    auth.AccountType = static_cast<int>(decodedToken.get_payload_claim("AccountType").as_integer());
+    auth.IsSuper = static_cast<int>(decodedToken.get_payload_claim("IsSuper").as_integer());
+
+    // 返回Auth对象
+    return auth;
+}
+
+//不验证具体Id
+Status verifyAuth(const QHttpServerRequest &request, int accountType) {
+    // 验证JWT
+    Auth auth = verifyJwt(request);
+    // 检查Auth对象的字段是否为空或者为-1
+    if (auth.Account.isEmpty() || auth.AccountType == -1 || auth.IsSuper == -1) {
+        // 如果Auth对象的字段为空或者为-1，返回登录失败的状态
+        return INVALID;
+    }
+    // 检查账户类型是否匹配
+    if (accountType == EVERYONE) {
+        // 如果accountType为EVERYONE（3），则无需检查账户类型，直接返回成功状态
+        return Success;
+    } else if (accountType == SUPER) {
+        // 如果accountType为SUPER（2），则需要检查IsSuper字段是否为1
+        if (auth.IsSuper != 1) {
+            // 如果IsSuper字段不为1，返回错误状态
+            return NO_PERMISSION;
+        }
+    } else if (auth.AccountType != accountType) {
+        // 如果账户类型不匹配，返回错误状态
+        return NO_PERMISSION;
+    }
+    // 如果JWT验证成功并且账户类型匹配，返回成功状态
+    return Success;
+}
+
+Status verifyAuth(const QHttpServerRequest &request, int accountType, const QString &id) {
+    // 验证JWT
+    Auth auth = verifyJwt(request);
+    // 检查账户类型和ID是否匹配
+    if (auth.AccountType != accountType || auth.Account != id) {
+        // 如果账户类型或ID不匹配，返回错误状态
+        return NO_PERMISSION;
+    }
+    // 如果JWT验证成功并且账户类型和ID匹配，返回成功状态
+    return Success;
+}
+
+QString generateJwt(const QString &account, int accountType, int isSuper) {
+    auto token = jwt::create()
+            .set_issuer(ISSUER)
+            .set_type("JWT")
+            .set_payload_claim("Account", jwt::claim(account.toStdString()))
+            .set_payload_claim("AccountType", jwt::claim(std::to_string(accountType)))
+            .set_payload_claim("IsSuper", jwt::claim(std::to_string(isSuper)))
+            .sign(jwt::algorithm::hs256{SECRET_KEY});
+
+    return QString::fromStdString(token);
+}
+
+QHttpServerResponse login(const QHttpServerRequest &request, Database::database &database) {
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取账号和密码
+    QString account = jsonObject["Account"].toString();
+    QString secret = jsonObject["Secret"].toString();
+
+    // 调用verifyAccount函数，验证账号和密码
+    Auth auth;
+    Status status = database.verifyAccount(account, secret, auth);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    if (status == Success) {
+        // 如果验证成功，生成JWT
+        QString jwt = generateJwt(account, auth.AccountType, auth.IsSuper);
+        responseJsonObject["success"] = true;
+        responseJsonObject["jwt"] = jwt;
+    } else if (status == NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "Account not found";
+    } else if (status == INVALID) {
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "Invalid password";
+    } else {
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "Login failed";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8());
+    return response;
+}
+
+QHttpServerResponse createAccount(const QHttpServerRequest &request, Database::database &database) {
+    // 验证JWT
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8());
+        return response;
+    }
+
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取账号、密码、账户类型和是否为超级用户
+    Auth auth;
+    auth.Account = jsonObject["Account"].toString();
+    auth.Secret = jsonObject["Secret"].toString();
+    auth.AccountType = jsonObject["AccountType"].toInt();
+    auth.IsSuper = jsonObject["IsSuper"].toInt();
+
+    // 调用createAccount函数，创建账号
+    status = database.createAccount(auth);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    if (status == Success) {
+        responseJsonObject["success"] = true;
+        responseJsonObject["message"] = "Account created successfully";
+    } else if (status == DUPLICATE) {
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "Account already exists";
+    } else {
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "Failed to create account";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8());
+    return response;
+}
 
 QHttpServerResponse getStudentInformation(const QString &studentId, Database::database &database) {
     Student student;
@@ -573,6 +760,11 @@ void addRoute(QHttpServer &httpServer, Database::database database) {
                      [&database](const QHttpServerRequest &request) {
                          return listLessons(request, database);
                      });
+    httpServer.route("/api/login/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return login(request, database);
+                     });
+
 }
 
 

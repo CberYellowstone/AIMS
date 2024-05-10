@@ -20,6 +20,8 @@ typedef int Status;
 
 #define TEACHER 0
 #define STUDENT 1
+#define SUPER 2
+#define EVERYONE 3
 
 #define NOT_RETAKE 0
 #define RETAKE 1
@@ -61,7 +63,6 @@ public:
 
 class Auth {
 public:
-    int Id; // 用户编号
     QString Account; // 用户账号
     QString Secret; // 用户密钥
     int AccountType; // 用户类型，0为教师，1为学生
@@ -104,6 +105,12 @@ namespace Database {
 
         Status listLessons(QVector<Lesson> &lessons, int maximum, int pageNum);
 
+        Status verifyAccount(const QString &account, const QString &secret, Auth &auth);
+
+        Status updateAccount(const Auth &auth);
+
+        Status createAccount(const Auth &auth);
+
     private:
         QSqlDatabase db;
 
@@ -131,9 +138,10 @@ namespace Database {
 
         Status listAuths(QVector<Auth> &auths, int maximum, int pageNum);
 
-        Status createAccount(const Auth &auth);
+        Status deleteAccount(const QString &account);
 
-        Status updateAccount(const Auth &auth);
+        Status getAccount(const QString &account, Auth &auth);
+
     };
 
 } // Database

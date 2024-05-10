@@ -104,12 +104,11 @@ namespace Database {
         )",
                 R"(
             CREATE TABLE IF NOT EXISTS auth (
-                Id INTEGER NOT NULL UNIQUE,
-                Account TEXT NOT NULL,
+                Account TEXT NOT NULL UNIQUE,
                 Secret TEXT NOT NULL,
                 AccountType INTEGER CHECK(AccountType in (0, 1)) NOT NULL,
                 IsSuper INTEGER NOT NULL,
-                PRIMARY KEY(Id)
+                PRIMARY KEY(Account)
             )
         )"};
 
@@ -959,7 +958,6 @@ namespace Database {
         while (query.next()) {
             QSqlRecord record = query.record();
             Auth auth;
-            auth.Id = record.value("Id").toInt();
             auth.Account = record.value("Account").toString();
             auth.Secret = record.value("Secret").toString();
             auth.AccountType = record.value("AccountType").toInt();
@@ -971,6 +969,19 @@ namespace Database {
 
     Status database::createAccount(const Auth &auth) {
         QSqlQuery query;
+
+        // Check if the account already exists
+        query.prepare("SELECT COUNT(*) FROM auth WHERE Account = :account");
+        query.bindValue(":account", auth.Account);
+        if (!query.exec()) {
+            qDebug() << "database.cpp: createAccount error: " << query.lastError();
+            return ERROR;
+        }
+        if (query.next() && query.value(0).toInt() > 0) {
+            return DUPLICATE;
+        }
+
+        // If the account does not exist, create it
         query.prepare(
                 "INSERT INTO auth (Account, Secret, AccountType, IsSuper) VALUES (:account, :secret, :accountType, :isSuper)");
         query.bindValue(":account", auth.Account);
@@ -1016,5 +1027,57 @@ namespace Database {
         }
         return Success;
     }
+
+    Status database::deleteAccount(const QString &account) {
+        QSqlQuery query;
+        query.prepare("DELETE FROM auth WHERE Account = :account");
+        query.bindValue(":account", account);
+        if (!query.exec()) {
+            qDebug() << "database.cpp: deleteAccount error: " << query.lastError();
+            return ERROR;
+        }
+        return Success;
+    }
+
+    Status database::getAccount(const QString &account, Auth &auth) {
+        QSqlQuery query;
+        query.prepare("SELECT * FROM auth WHERE Account = :account");
+        query.bindValue(":account", account);
+        if (!query.exec()) {
+            qDebug() << "database.cpp: getAccount error: " << query.lastError();
+            return ERROR;
+        }
+        if (!query.next()) {
+            return NOT_FOUND;
+        }
+        QSqlRecord record = query.record();
+        auth.Account = record.value("Account").toString();
+        auth.Secret = record.value("Secret").toString();
+        auth.AccountType = record.value("AccountType").toInt();
+        auth.IsSuper = record.value("IsSuper").toInt();
+        return Success;
+    }
+
+    Status database::verifyAccount(const QString &account, const QString &secret, Auth &auth) {
+        QSqlQuery query;
+        query.prepare("SELECT * FROM auth WHERE Account = :account");
+        query.bindValue(":account", account);
+        if (!query.exec()) {
+            return ERROR;
+        }
+        if (!query.next()) {
+            return NOT_FOUND;
+        }
+        QSqlRecord record = query.record();
+        if (record.value("Secret").toString() != secret) {
+            return INVALID;
+        }
+        auth.Account = record.value("Account").toString();
+        auth.AccountType = record.value("AccountType").toInt();
+        auth.IsSuper = record.value("IsSuper").toInt();
+        return Success;
+    }
+
+
 }// namespace Database
 #pragma clang diagnostic pop
