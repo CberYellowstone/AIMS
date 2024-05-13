@@ -15,9 +15,9 @@ namespace Database {
         db.setDatabaseName(path);
 
         if (!db.open()) {
-            qDebug() << "database.cpp: Error: connection with database fail";
+            qDebug() << "Debug | database.cpp: Error: connection with database fail";
         } else {
-            qDebug() << "database.cpp: 数据库连接成功";
+            qDebug() << "Debug | database.cpp: 数据库连接成功";
             initializeDatabase();
         }
     }
@@ -117,13 +117,13 @@ namespace Database {
 
         for (int i = 0; i < tableCreationQueries.size(); i++) {
             if (!ifTableExist(tableNames[i])) {
-                qDebug() << "database.cpp: 正在创建" << tableNames[i];
+                qDebug() << "Debug | database.cpp: 正在创建" << tableNames[i];
 
                 if (!query.exec(tableCreationQueries[i])) {
-                    qDebug() << "database.cpp: Error: " << query.lastError();
+                    qDebug() << "Debug | database.cpp: Error:" << query.lastError();
                     return ERROR;
                 } else {
-                    qDebug() << tableNames[i] << "创建成功";
+                    qDebug() << "Debug | database.cpp:" << tableNames[i] << "创建成功";
                 }
             }
         }
@@ -138,7 +138,7 @@ namespace Database {
         QSqlQuery query;
         query.prepare("SELECT LessonId, TeacherId FROM lesson_information");
         if (!query.exec()) {
-            qDebug() << "database.cpp: checkDatabase error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: checkDatabase error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -172,7 +172,7 @@ namespace Database {
         // 检查每个学生的选课信息是否正确
         query.prepare("SELECT StudentId, ChosenLessons FROM student_information");
         if (!query.exec()) {
-            qDebug() << "database.cpp: checkDatabase error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: checkDatabase error: " << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -191,7 +191,7 @@ namespace Database {
                 QString tableName = "lesson_" + lessonId;
                 query.prepare("SELECT StudentId FROM " + tableName);
                 if (!query.exec()) {
-                    qDebug() << "database.cpp: checkDatabase error: " << query.lastError();
+                    qDebug() << "Debug | database.cpp: checkDatabase error: " << query.lastError();
                     db.rollback();
                     return ERROR;
                 }
@@ -221,7 +221,7 @@ namespace Database {
         query.prepare("SELECT ChosenLessons FROM student_information WHERE StudentId = :studentId");
         query.bindValue(":studentId", studentId);
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: deleteChosenLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteChosenLesson error: " << query.lastError();
             return ERROR;
         }
         QString chosenLessonsJson = query.value("ChosenLessons").toString();
@@ -246,7 +246,7 @@ namespace Database {
         query.bindValue(":chosenLessons", newChosenLessonsJson);
         query.bindValue(":studentId", studentId);
         if (!query.exec()) {
-            qDebug() << "database.cpp: deleteChosenLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteChosenLesson error: " << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -274,7 +274,7 @@ namespace Database {
         query.bindValue(":id", student.Id);
 
         if (!query.exec()) {
-            qDebug() << "database.cpp: updateStudent error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: updateStudent error: " << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -323,7 +323,7 @@ namespace Database {
         query.bindValue(":timeAndLocations", timeAndLocationsJson);
 
         if (!query.exec()) {
-            qDebug() << "database.cpp: updateLessonInformation error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: updateLessonInformation error: " << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -348,7 +348,7 @@ namespace Database {
         query.prepare("SELECT COUNT(*) FROM teacher_information WHERE TeacherId = :id");
         query.bindValue(":id", teacherId);
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: ifTeacherExist error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: ifTeacherExist error: " << query.lastError();
             return ERROR;
         }
         int count = query.value(0).toInt();
@@ -363,7 +363,7 @@ namespace Database {
         QSqlQuery query;
         if (!ifTableExist(tableName)) {
             // 如果不存在，创建新表
-            qDebug() << "database.cpp: 正在创建表" << tableName;
+            qDebug() << "Debug | database.cpp: 正在创建表" << tableName;
             query.prepare(R"(CREATE TABLE IF NOT EXISTS ")" + tableName + R"(" (
             "StudentId" TEXT NOT NULL UNIQUE,
             "ExamGrade" REAL,
@@ -378,11 +378,11 @@ namespace Database {
         )
     )");
             if (!query.exec()) {
-                qDebug() << "database.cpp: Error creating table " << tableName << ": " << query.lastError();
+                qDebug() << "Debug | database.cpp: Error creating table" << tableName << ":" << query.lastError();
                 db.rollback();
                 return ERROR;
             }
-            qDebug() << "database.cpp: 表" << tableName << "创建成功";
+            qDebug() << "Debug | database.cpp: 表" << tableName << "创建成功";
         }
         db.commit();
         return Success;
@@ -445,7 +445,7 @@ namespace Database {
         query.bindValue(":teachingLessons", teachingLessonsJson);
         query.bindValue(":teacherId", teacherId);
         if (!query.exec()) {
-            qDebug() << "database.cpp: updateTeachingLessons error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: updateTeachingLessons error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -458,7 +458,7 @@ namespace Database {
         query.prepare("SELECT TeachingLessons FROM teacher_information WHERE TeacherId = :teacherId");
         query.bindValue(":teacherId", teacherId);
         if (!query.exec()) {
-            qDebug() << "database.cpp: addTeachingLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: addTeachingLesson error:" << query.lastError();
             return ERROR;
         }
         if (!query.next()) {
@@ -486,7 +486,7 @@ namespace Database {
         query.bindValue(":teachingLessons", newTeachingLessonsJson);
         query.bindValue(":teacherId", teacherId);
         if (!query.exec()) {
-            qDebug() << "database.cpp: addTeachingLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: addTeachingLesson error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -499,7 +499,7 @@ namespace Database {
         query.prepare("SELECT TeachingLessons FROM teacher_information WHERE TeacherId = :teacherId");
         query.bindValue(":teacherId", teacherId);
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: deleteTeachingLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteTeachingLesson error:" << query.lastError();
             return ERROR;
         }
         QString teachingLessonsJson = query.value("TeachingLessons").toString();
@@ -519,7 +519,7 @@ namespace Database {
         query.bindValue(":teachingLessons", newTeachingLessonsJson);
         query.bindValue(":teacherId", teacherId);
         if (!query.exec()) {
-            qDebug() << "database.cpp: deleteTeachingLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteTeachingLesson error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -556,7 +556,7 @@ namespace Database {
         query.bindValue(":id", teacher.Id);
         query.bindValue(":name", teacher.Name);
         if (!query.exec()) {
-            qDebug() << "database.cpp: updateTeacher error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: updateTeacher error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -571,7 +571,7 @@ namespace Database {
         query.prepare("SELECT COUNT(*) FROM student_information WHERE StudentId = :id");
         query.bindValue(":id", id);
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: deleteStudent error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteStudent error:" << query.lastError();
             return ERROR;
         }
         int count = query.value(0).toInt();
@@ -582,7 +582,7 @@ namespace Database {
         query.prepare("SELECT ChosenLessons FROM student_information WHERE StudentId = :id");
         query.bindValue(":id", id);
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: deleteStudent error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteStudent error:" << query.lastError();
             return ERROR;
         }
         QString chosenLessonsJson = query.value("ChosenLessons").toString();
@@ -600,7 +600,7 @@ namespace Database {
             query.prepare("SELECT LessonStudents FROM lesson_information WHERE LessonId = :lessonId");
             query.bindValue(":lessonId", lessonId);
             if (!query.exec() || !query.next()) {
-                qDebug() << "database.cpp: deleteStudent error: " << query.lastError();
+                qDebug() << "Debug | database.cpp: deleteStudent error:" << query.lastError();
                 db.rollback();
                 return ERROR;
             }
@@ -619,7 +619,7 @@ namespace Database {
             query.bindValue(":lessonStudents", newLessonStudentsJson);
             query.bindValue(":lessonId", lessonId);
             if (!query.exec()) {
-                qDebug() << "database.cpp: deleteStudent error: " << query.lastError();
+                qDebug() << "Debug | database.cpp: deleteStudent error:" << query.lastError();
                 db.rollback();
                 return ERROR;
             }
@@ -629,7 +629,7 @@ namespace Database {
             query.prepare("DELETE FROM " + tableName + " WHERE StudentId = :id");
             query.bindValue(":id", id);
             if (!query.exec()) {
-                qDebug() << "database.cpp: deleteStudent error: " << query.lastError();
+                qDebug() << "Debug | database.cpp: deleteStudent error:" << query.lastError();
                 db.rollback();
                 return ERROR;
             }
@@ -639,7 +639,7 @@ namespace Database {
         query.prepare("DELETE FROM student_information WHERE StudentId = :id");
         query.bindValue(":id", id);
         if (!query.exec()) {
-            qDebug() << "database.cpp: deleteStudent error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteStudent error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -653,7 +653,7 @@ namespace Database {
         query.prepare("SELECT LessonStudents FROM lesson_information WHERE LessonId = :id");
         query.bindValue(":id", id);
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: deleteLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteLesson error:" << query.lastError();
             return ERROR;
         }
         QString lessonStudentsJson = query.value("LessonStudents").toString();
@@ -671,7 +671,7 @@ namespace Database {
             query.prepare("SELECT ChosenLessons FROM student_information WHERE StudentId = :studentId");
             query.bindValue(":studentId", studentId);
             if (!query.exec() || !query.next()) {
-                qDebug() << "database.cpp: deleteLesson error: " << query.lastError();
+                qDebug() << "Debug | database.cpp: deleteLesson error:" << query.lastError();
                 db.rollback();
                 return ERROR;
             }
@@ -690,7 +690,7 @@ namespace Database {
             query.bindValue(":chosenLessons", newChosenLessonsJson);
             query.bindValue(":studentId", studentId);
             if (!query.exec()) {
-                qDebug() << "database.cpp: deleteLesson error: " << query.lastError();
+                qDebug() << "Debug | database.cpp: deleteLesson error:" << query.lastError();
                 db.rollback();
                 return ERROR;
             }
@@ -706,7 +706,7 @@ namespace Database {
         query.prepare("DELETE FROM lesson_information WHERE LessonId = :id");
         query.bindValue(":id", id);
         if (!query.exec()) {
-            qDebug() << "database.cpp: deleteLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteLesson error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -716,7 +716,7 @@ namespace Database {
         QString tableName = "lesson_" + id;
         query.prepare("DROP TABLE IF EXISTS " + tableName);
         if (!query.exec()) {
-            qDebug() << "database.cpp: deleteLesson error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteLesson error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -730,7 +730,7 @@ namespace Database {
         query.prepare("SELECT TeachingLessons FROM teacher_information WHERE TeacherId = :id");
         query.bindValue(":id", id);
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: deleteTeacher error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteTeacher error:" << query.lastError();
             return ERROR;
         }
         QString teachingLessonsJson = query.value("TeachingLessons").toString();
@@ -744,7 +744,7 @@ namespace Database {
 
         // 如果老师正在任教的课程不为空，返回错误
         if (!teachingLessons.isEmpty()) {
-            qDebug() << "database.cpp: deleteTeacher error: Teacher is still teaching courses";
+            qDebug() << "Debug | database.cpp: deleteTeacher error: Teacher is still teaching courses";
             return RELATION_ERROR;
         }
 
@@ -753,7 +753,7 @@ namespace Database {
         query.prepare("DELETE FROM teacher_information WHERE TeacherId = :id");
         query.bindValue(":id", id);
         if (!query.exec()) {
-            qDebug() << "database.cpp: deleteTeacher error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteTeacher error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
@@ -766,7 +766,7 @@ namespace Database {
         query.prepare("SELECT * FROM student_information WHERE StudentClass = :studentClass");
         query.bindValue(":studentClass", studentClass);
         if (!query.exec()) {
-            qDebug() << "database.cpp: getStudentByClass error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: getStudentByClass error:" << query.lastError();
             return ERROR;
         }
         while (query.next()) {
@@ -803,7 +803,7 @@ namespace Database {
         query.bindValue(":maximum", maximum);
         query.bindValue(":offset", maximum * (pageNum - 1));
         if (!query.exec()) {
-            qDebug() << "database.cpp: listStudents error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: listStudents error:" << query.lastError();
             return ERROR;
         }
         while (query.next()) {
@@ -838,7 +838,7 @@ namespace Database {
         QSqlQuery query;
         query.prepare("SELECT COUNT(*) FROM student_information");
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: getStudentCount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: getStudentCount error:" << query.lastError();
             return -1;
         }
         return query.value(0).toInt();
@@ -848,7 +848,7 @@ namespace Database {
         QSqlQuery query;
         query.prepare("SELECT COUNT(*) FROM lesson_information");
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: getLessonCount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: getLessonCount error:" << query.lastError();
             return -1;
         }
         return query.value(0).toInt();
@@ -858,7 +858,7 @@ namespace Database {
         QSqlQuery query;
         query.prepare("SELECT COUNT(*) FROM teacher_information");
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: getTeacherCount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: getTeacherCount error:" << query.lastError();
             return -1;
         }
         return query.value(0).toInt();
@@ -868,7 +868,7 @@ namespace Database {
         QSqlQuery query;
         query.prepare("SELECT COUNT(*) FROM auth");
         if (!query.exec() || !query.next()) {
-            qDebug() << "database.cpp: getAuthCount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: getAuthCount error:" << query.lastError();
             return -1;
         }
         return query.value(0).toInt();
@@ -880,7 +880,7 @@ namespace Database {
         query.bindValue(":maximum", maximum);
         query.bindValue(":offset", maximum * (pageNum - 1));
         if (!query.exec()) {
-            qDebug() << "database.cpp: listLessons error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: listLessons error:" << query.lastError();
             return ERROR;
         }
         while (query.next()) {
@@ -925,7 +925,7 @@ namespace Database {
         query.bindValue(":maximum", maximum);
         query.bindValue(":offset", maximum * (pageNum - 1));
         if (!query.exec()) {
-            qDebug() << "database.cpp: listTeachers error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: listTeachers error:" << query.lastError();
             return ERROR;
         }
         while (query.next()) {
@@ -952,7 +952,7 @@ namespace Database {
         query.bindValue(":maximum", maximum);
         query.bindValue(":offset", maximum * (pageNum - 1));
         if (!query.exec()) {
-            qDebug() << "database.cpp: listAuths error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: listAuths error:" << query.lastError();
             return ERROR;
         }
         while (query.next()) {
@@ -974,7 +974,7 @@ namespace Database {
         query.prepare("SELECT COUNT(*) FROM auth WHERE Account = :account");
         query.bindValue(":account", auth.Account);
         if (!query.exec()) {
-            qDebug() << "database.cpp: createAccount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: createAccount error:" << query.lastError();
             return ERROR;
         }
         if (query.next() && query.value(0).toInt() > 0) {
@@ -989,7 +989,7 @@ namespace Database {
         query.bindValue(":accountType", auth.AccountType);
         query.bindValue(":isSuper", auth.IsSuper);
         if (!query.exec()) {
-            qDebug() << "database.cpp: createAccount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: createAccount error:" << query.lastError();
             return ERROR;
         }
         return Success;
@@ -1022,7 +1022,7 @@ namespace Database {
             query.bindValue(":isSuper", auth.IsSuper);
         }
         if (!query.exec()) {
-            qDebug() << "database.cpp: updateAccount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: updateAccount error:" << query.lastError();
             return ERROR;
         }
         return Success;
@@ -1033,7 +1033,7 @@ namespace Database {
         query.prepare("DELETE FROM auth WHERE Account = :account");
         query.bindValue(":account", account);
         if (!query.exec()) {
-            qDebug() << "database.cpp: deleteAccount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: deleteAccount error:" << query.lastError();
             return ERROR;
         }
         return Success;
@@ -1044,7 +1044,7 @@ namespace Database {
         query.prepare("SELECT * FROM auth WHERE Account = :account");
         query.bindValue(":account", account);
         if (!query.exec()) {
-            qDebug() << "database.cpp: getAccount error: " << query.lastError();
+            qDebug() << "Debug | database.cpp: getAccount error:" << query.lastError();
             return ERROR;
         }
         if (!query.next()) {
