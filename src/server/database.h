@@ -57,7 +57,8 @@ public:
 class Teacher {
 public:
     QString Id; // 教师编号
-    QString Name; // 教师
+    QString Name; // 教师姓名
+    QString Uint; // 教师单位
     QVector<QString> TeachingLessons; // 教师教授课程编号
 };
 
@@ -67,6 +68,18 @@ public:
     QString Secret; // 用户密钥
     int AccountType; // 用户类型，0为教师，1为学生
     int IsSuper; // 是否为超级用户，0为否，1为是
+};
+
+class Grade {
+public:
+    QString StudentId; // 学生学号
+    QString LessonId; // 课程编号
+    double ExamGrade; // 课程考试成绩
+    double RegularGrade; // 课程平时成绩
+    double TotalGrade; // 课程总成绩
+    int Retake; // 是否重修，0为否，1为该课程已重修，2为该课程是重修科目
+    QVector<QString> RetakeSemesters; // 重修学期
+    QVector<QString> RetakeLessonId; // 重修课程编号
 };
 
 namespace Database {
@@ -111,6 +124,14 @@ namespace Database {
 
         Status createAccount(const Auth &auth);
 
+        Status deleteLesson(const QString &id);
+
+        Status deleteTeacher(const QString &id);
+
+        Status getStudentByClass(const QString &studentClass, QVector<Student> &students);
+
+        Status getStudentLessonGrade(const QString &studentId, const QString &lessonId, Grade &grade);
+
     private:
         QSqlDatabase db;
 
@@ -121,12 +142,6 @@ namespace Database {
         Status createTableIfNotExists(const QString &tableName);
 
         Status deleteTeachingLesson(const QString &teacherId, const QString &lessonId);
-
-        Status deleteLesson(const QString &id);
-
-        Status deleteTeacher(const QString &id);
-
-        Status getStudentByClass(const QString &studentClass, QVector<Student> &students);
 
         Status checkDatabase();
 
@@ -141,6 +156,16 @@ namespace Database {
         Status deleteAccount(const QString &account);
 
         Status getAccount(const QString &account, Auth &auth);
+
+        Status listClass(QVector<QString> &classes);
+
+        Status listCollege(QVector<QString> &colleges);
+
+        Status listMajor(QVector<QString> &majors);
+
+        Status listLessonArea(QVector<QString> &areas);
+
+        Status listLessonSemester(QVector<QString> &semesters);
 
     };
 

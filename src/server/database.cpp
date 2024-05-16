@@ -98,6 +98,7 @@ namespace Database {
             CREATE TABLE IF NOT EXISTS teacher_information (
                 TeacherId TEXT NOT NULL UNIQUE,
                 TeacherName TEXT NOT NULL,
+                TeacherUint TEXT,
                 TeachingLessons TEXT NOT NULL DEFAULT '[]',
                 PRIMARY KEY(TeacherId)
             )
@@ -535,6 +536,7 @@ namespace Database {
             QSqlRecord record = query.record();
             teacher.Id = record.value("TeacherId").toString();
             teacher.Name = record.value("TeacherName").toString();
+            teacher.Uint = record.value("TeacherUint").toString();
 
             QString teachingLessonsJson = record.value("TeachingLessons").toString();
             QJsonParseError jsonError;
@@ -552,9 +554,11 @@ namespace Database {
     Status database::updateTeacher(const Teacher &teacher) {
         db.transaction();
         QSqlQuery query;
-        query.prepare("INSERT OR REPLACE INTO teacher_information (TeacherId, TeacherName) VALUES (:id, :name)");
+        query.prepare(
+                "INSERT OR REPLACE INTO teacher_information (TeacherId, TeacherName, TeacherUnit) VALUES (:id, :name :unit)");
         query.bindValue(":id", teacher.Id);
         query.bindValue(":name", teacher.Name);
+        query.bindValue(":unit", teacher.Uint);
         if (!query.exec()) {
             qDebug() << "Debug | database.cpp: updateTeacher error:" << query.lastError();
             db.rollback();
@@ -933,6 +937,7 @@ namespace Database {
             Teacher teacher;
             teacher.Id = record.value("TeacherId").toString();
             teacher.Name = record.value("TeacherName").toString();
+            teacher.Uint = record.value("TeacherUint").toString();
 
             QString teachingLessonsJson = record.value("TeachingLessons").toString();
             QJsonParseError jsonError;
@@ -1075,6 +1080,121 @@ namespace Database {
         auth.Account = record.value("Account").toString();
         auth.AccountType = record.value("AccountType").toInt();
         auth.IsSuper = record.value("IsSuper").toInt();
+        return Success;
+    }
+
+    Status database::listClass(QVector<QString> &classes) {
+        QSqlQuery query;
+        query.prepare("SELECT DISTINCT StudentClass FROM student_information");
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: listClass error:" << query.lastError();
+            return ERROR;
+        }
+        while (query.next()) {
+            classes.append(query.value(0).toString());
+        }
+        return Success;
+    }
+
+    Status database::listCollege(QVector<QString> &colleges) {
+        QSqlQuery query;
+        query.prepare("SELECT DISTINCT StudentCollege FROM student_information");
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: listCollege error:" << query.lastError();
+            return ERROR;
+        }
+        while (query.next()) {
+            colleges.append(query.value(0).toString());
+        }
+        return Success;
+    }
+
+    Status database::listMajor(QVector<QString> &majors) {
+        QSqlQuery query;
+        query.prepare("SELECT DISTINCT StudentMajor FROM student_information");
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: listMajor error:" << query.lastError();
+            return ERROR;
+        }
+        while (query.next()) {
+            majors.append(query.value(0).toString());
+        }
+        return Success;
+    }
+
+    Status database::listLessonArea(QVector<QString> &areas) {
+        QSqlQuery query;
+        query.prepare("SELECT DISTINCT LessonArea FROM lesson_information");
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: listLessonArea error:" << query.lastError();
+            return ERROR;
+        }
+        while (query.next()) {
+            areas.append(query.value(0).toString());
+        }
+        return Success;
+    }
+
+    Status database::listLessonSemester(QVector<QString> &semesters) {
+        QSqlQuery query;
+        query.prepare("SELECT DISTINCT LessonSemester FROM lesson_information");
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: listLessonSemester error:" << query.lastError();
+            return ERROR;
+        }
+        while (query.next()) {
+            semesters.append(query.value(0).toString());
+        }
+        return Success;
+    }
+
+    Status database::getStudentLessonGrade(const QString &studentId, const QString &lessonId, Grade &grade) {
+        // 检查课程是否存在
+        QSqlQuery lessonQuery;
+        lessonQuery.prepare("SELECT COUNT(*) FROM lesson_information WHERE LessonId = :lessonId");
+        lessonQuery.bindValue(":lessonId", lessonId);
+        if (!lessonQuery.exec() || !lessonQuery.next() || lessonQuery.value(0).toInt() == 0) {
+            qDebug() << "Debug | database.cpp: getStudentLessonGrade error: Lesson not found";
+            return LESSON_NOT_FOUND;
+        }
+
+        // 检查学生是否存在
+        QSqlQuery studentQuery;
+        studentQuery.prepare("SELECT COUNT(*) FROM student_information WHERE StudentId = :studentId");
+        studentQuery.bindValue(":studentId", studentId);
+        if (!studentQuery.exec() || !studentQuery.next() || studentQuery.value(0).toInt() == 0) {
+            qDebug() << "Debug | database.cpp: getStudentLessonGrade error: Student not found";
+            return STUDENT_NOT_FOUND;
+        }
+
+        // 查询学生的课程成绩
+        QSqlQuery query;
+        query.prepare("SELECT * FROM lesson_" + lessonId + " WHERE StudentId = :studentId");
+        query.bindValue(":studentId", studentId);
+        if (!query.exec() || !query.next()) {
+            qDebug() << "Debug | database.cpp: getStudentLessonGrade error:" << query.lastError();
+            return ERROR;
+        }
+        QSqlRecord record = query.record();
+        grade.StudentId = record.value("StudentId").toString();
+        grade.ExamGrade = record.value("ExamGrade").toDouble();
+        grade.RegularGrade = record.value("RegularGrade").toDouble();
+        grade.TotalGrade = record.value("TotalGrade").toDouble();
+        grade.Retake = record.value("Retake").toInt();
+        QString retakeSemestersJson = record.value("RetakeSemesters").toString();
+        QJsonParseError jsonError;
+        QJsonDocument doc = QJsonDocument::fromJson(retakeSemestersJson.toUtf8(), &jsonError);
+        QJsonArray array = doc.array();
+        for (auto &&i: array) {
+            grade.RetakeSemesters.append(i.toString());
+        }
+        QString retakeLessonIdJson = record.value("RetakeLessonId").toString();
+        doc = QJsonDocument::fromJson(retakeLessonIdJson.toUtf8(), &jsonError);
+        array = doc.array();
+        // grade.RetakeLessonId 是 QVector<QString> 类型
+        for (auto &&id: array) {
+            grade.RetakeLessonId.append(id.toString());
+        }
         return Success;
     }
 

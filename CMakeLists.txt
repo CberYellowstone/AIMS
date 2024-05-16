@@ -14,6 +14,8 @@ find_package(Qt6 COMPONENTS
         Core
         Sql
         HttpServer
+        Widgets
+        Network
         REQUIRED)
 
 add_subdirectory(jwt-cpp)
