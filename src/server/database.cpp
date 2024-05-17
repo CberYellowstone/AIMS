@@ -1177,9 +1177,21 @@ namespace Database {
         }
         QSqlRecord record = query.record();
         grade.StudentId = record.value("StudentId").toString();
-        grade.ExamGrade = record.value("ExamGrade").toDouble();
-        grade.RegularGrade = record.value("RegularGrade").toDouble();
-        grade.TotalGrade = record.value("TotalGrade").toDouble();
+        if (record.value("ExamGrade").toString().isEmpty()) {
+            grade.ExamGrade = -1;
+        } else {
+            grade.ExamGrade = record.value("ExamGrade").toDouble();
+        }
+        if (record.value("RegularGrade").toString().isEmpty()) {
+            grade.RegularGrade = -1;
+        } else {
+            grade.RegularGrade = record.value("RegularGrade").toDouble();
+        }
+        if (record.value("TotalGrade").toString().isEmpty()) {
+            grade.TotalGrade = -1;
+        } else {
+            grade.TotalGrade = record.value("TotalGrade").toDouble();
+        }
         grade.Retake = record.value("Retake").toInt();
         QString retakeSemestersJson = record.value("RetakeSemesters").toString();
         QJsonParseError jsonError;
@@ -1195,6 +1207,105 @@ namespace Database {
         for (auto &&id: array) {
             grade.RetakeLessonId.append(id.toString());
         }
+        return Success;
+    }
+
+    Status database::listLessonClasses(const QString &lessonId, QVector<QString> &classes) {
+        QSqlQuery query;
+        query.prepare("SELECT LessonStudents FROM lesson_information WHERE LessonId = :lessonId");
+        query.bindValue(":lessonId", lessonId);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: listLessonClasses error:" << query.lastError();
+            return ERROR;
+        }
+        if (!query.next()) {
+            qDebug() << "Debug | database.cpp: listLessonClasses error: Lesson not found";
+            return LESSON_NOT_FOUND;
+        }
+        QString lessonStudentsJson = query.value("LessonStudents").toString();
+        QJsonParseError jsonError;
+        QJsonDocument doc = QJsonDocument::fromJson(lessonStudentsJson.toUtf8(), &jsonError);
+        QJsonArray array = doc.array();
+        QSet<QString> classSet;
+        for (auto &&i: array) {
+            query.prepare("SELECT StudentClass FROM student_information WHERE StudentId = :studentId");
+            query.bindValue(":studentId", i.toString());
+            if (!query.exec() || !query.next()) {
+                qDebug() << "Debug | database.cpp: listLessonClasses error:" << query.lastError();
+                return ERROR;
+            }
+            classSet.insert(query.value(0).toString());
+        }
+        for (auto &&i: classSet) {
+            classes.append(i);
+        }
+        return Success;
+    }
+
+    Status database::updateStudentLessonGrade(const Grade &grade) {
+        // 检查课程是否存在
+        QSqlQuery lessonQuery;
+        lessonQuery.prepare("SELECT COUNT(*) FROM lesson_information WHERE LessonId = :lessonId");
+        lessonQuery.bindValue(":lessonId", grade.LessonId);
+        if (!lessonQuery.exec() || !lessonQuery.next() || lessonQuery.value(0).toInt() == 0) {
+            qDebug() << "Debug | database.cpp: updateStudentLessonGrade error: Lesson not found";
+            return LESSON_NOT_FOUND;
+        }
+
+        // 检查学生是否存在
+        QSqlQuery studentQuery;
+        studentQuery.prepare("SELECT COUNT(*) FROM student_information WHERE StudentId = :studentId");
+        studentQuery.bindValue(":studentId", grade.StudentId);
+        if (!studentQuery.exec() || !studentQuery.next() || studentQuery.value(0).toInt() == 0) {
+            qDebug() << "Debug | database.cpp: updateStudentLessonGrade error: Student not found";
+            return STUDENT_NOT_FOUND;
+        }
+
+        // 更新学生成绩
+        db.transaction();
+        QSqlQuery query;
+        QString updateStatement = "UPDATE lesson_" + grade.LessonId + " SET ";
+        if (grade.ExamGrade != -1) {
+            updateStatement += "ExamGrade = :examGrade, ";
+        }
+        if (grade.RegularGrade != -1) {
+            updateStatement += "RegularGrade = :regularGrade, ";
+        }
+        if (grade.TotalGrade != -1) {
+            updateStatement += "TotalGrade = :totalGrade, ";
+        }
+        // Remove the last comma and space
+        updateStatement = updateStatement.left(updateStatement.length() - 2);
+        updateStatement += " WHERE StudentId = :studentId";
+        query.prepare(updateStatement);
+        if (grade.ExamGrade != -1) {
+            if (grade.ExamGrade == -2) {
+                query.bindValue(":examGrade", "");
+            } else {
+                query.bindValue(":examGrade", grade.ExamGrade);
+            }
+        }
+        if (grade.RegularGrade != -1) {
+            if (grade.RegularGrade == -2) {
+                query.bindValue(":regularGrade", "");
+            } else {
+                query.bindValue(":regularGrade", grade.RegularGrade);
+            }
+        }
+        if (grade.TotalGrade != -1) {
+            if (grade.TotalGrade == -2) {
+                query.bindValue(":totalGrade", "");
+            } else {
+                query.bindValue(":totalGrade", grade.TotalGrade);
+            }
+        }
+        query.bindValue(":studentId", grade.StudentId);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: updateStudentLessonGrade error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        db.commit();
         return Success;
     }
 

@@ -132,6 +132,10 @@ namespace Database {
 
         Status getStudentLessonGrade(const QString &studentId, const QString &lessonId, Grade &grade);
 
+        Status listLessonClasses(const QString &lessonId, QVector<QString> &classes);
+
+        Status updateStudentLessonGrade(const Grade &grade);
+
     private:
         QSqlDatabase db;
 
