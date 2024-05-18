@@ -333,6 +333,7 @@ QHttpServerResponse updateLessonInformation(const QHttpServerRequest &request, D
     lesson.TeacherId = jsonObject["TeacherId"].toString();
     lesson.LessonCredits = jsonObject["LessonCredits"].toInt();
     lesson.LessonArea = jsonObject["LessonArea"].toString();
+    lesson.LessonSemester = jsonObject["LessonSemester"].toString();
 
     // 验证权限
     Status status = verifyAuth(request, TEACHER, lesson.TeacherId);
@@ -369,6 +370,7 @@ QHttpServerResponse updateLessonInformation(const QHttpServerRequest &request, D
 
     // 更新数据库
     status = database.updateLessonInformation(lesson);
+    database.addTeachingLesson(lesson.TeacherId, lesson.Id);
 
     // 创建一个JSON响应
     QHttpServerResponder::StatusCode statusCode;
@@ -385,6 +387,65 @@ QHttpServerResponse updateLessonInformation(const QHttpServerRequest &request, D
         responseJsonObject["success"] = false;
         statusCode = QHttpServerResponse::StatusCode::InternalServerError;
         responseJsonObject["message"] = "Failed to update lesson information";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8(), statusCode);
+    return response;
+}
+
+QHttpServerResponse updateLessonChosenStudent(const QHttpServerRequest &request, Database::database &database) {
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取课程的编号和学生的学号
+    Lesson lesson;
+    lesson.Id = jsonObject["Id"].toString();
+    QJsonArray lessonStudentsArray = jsonObject["LessonStudents"].toArray();
+    for (const auto &lessonStudent: lessonStudentsArray) {
+        lesson.LessonStudents.append(lessonStudent.toString());
+    }
+
+    // 验证权限
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8(), QHttpServerResponder::StatusCode::Forbidden);
+        return response;
+    }
+
+    // 更新数据库
+    status = database.updateLessonChosenStudent(lesson);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    QHttpServerResponder::StatusCode statusCode;
+    if (status == Success) {
+        responseJsonObject["success"] = true;
+        statusCode = QHttpServerResponse::StatusCode::Ok;
+        responseJsonObject["message"] = "Lesson chosen student updated successfully";
+    } else if (status == STUDENT_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Student not found";
+    } else if (status == LESSON_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Lesson not found";
+    } else {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::InternalServerError;
+        responseJsonObject["message"] = "Failed to update lesson chosen student";
     }
     QJsonDocument responseDoc(responseJsonObject);
     QString responseString = responseDoc.toJson(QJsonDocument::Compact);
@@ -446,7 +507,7 @@ QHttpServerResponse getTeacherInformation(const QString &teacherId, Database::da
         jsonObject["success"] = true;
         jsonObject["Id"] = teacher.Id;
         jsonObject["Name"] = teacher.Name;
-        jsonObject["Uint"] = teacher.Uint;
+        jsonObject["Unit"] = teacher.Unit;
         QJsonArray teachingLessonsArray;
         for (const auto &teachingLesson: teacher.TeachingLessons) {
             teachingLessonsArray.append(teachingLesson);
@@ -477,7 +538,7 @@ QHttpServerResponse updateTeacherInformation(const QHttpServerRequest &request, 
     Teacher teacher;
     teacher.Id = jsonObject["Id"].toString();
     teacher.Name = jsonObject["Name"].toString();
-    teacher.Uint = jsonObject["Uint"].toString();
+    teacher.Unit = jsonObject["Unit"].toString();
 
     // 验证权限
     Status status = verifyAuth(request, TEACHER, teacher.Id);
@@ -565,7 +626,62 @@ QHttpServerResponse addTeachingLessons(const QHttpServerRequest &request, Databa
     return response;
 }
 
-QHttpServerResponse deleteStudentInformation(const QHttpServerRequest &request, Database::database &database) {
+QHttpServerResponse deleteChosenLesson(const QHttpServerRequest &request, Database::database &database) {
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取学生的学号和课程的编号
+    QString studentId = jsonObject["studentId"].toString();
+    QString lessonId = jsonObject["lessonId"].toString();
+
+    // 验证权限
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8(), QHttpServerResponder::StatusCode::Forbidden);
+        return response;
+    }
+
+    // 调用deleteChosenLesson函数
+    status = database.deleteChosenLesson(studentId, lessonId);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    QHttpServerResponder::StatusCode statusCode;
+    if (status == Success) {
+        responseJsonObject["success"] = true;
+        statusCode = QHttpServerResponse::StatusCode::Ok;
+        responseJsonObject["message"] = "Chosen lesson deleted successfully";
+    } else if (status == STUDENT_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Student not found";
+    } else if (status == LESSON_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Lesson not found";
+    } else {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::InternalServerError;
+        responseJsonObject["message"] = "Failed to delete chosen lesson";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8(), statusCode);
+    return response;
+}
+
+QHttpServerResponse deleteStudent(const QHttpServerRequest &request, Database::database &database) {
     // 获取请求的body
     QByteArray body = request.body();
 
@@ -705,6 +821,61 @@ QHttpServerResponse listStudents(const QHttpServerRequest &request, Database::da
     return response;
 }
 
+QHttpServerResponse addChosenLesson(const QHttpServerRequest &request, Database::database &database) {
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取学生的学号和课程的编号
+    QString studentId = jsonObject["studentId"].toString();
+    QString lessonId = jsonObject["lessonId"].toString();
+
+    // 验证权限
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8(), QHttpServerResponder::StatusCode::Forbidden);
+        return response;
+    }
+
+    // 调用addChosenLesson函数
+    status = database.addChosenLesson(studentId, lessonId);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    QHttpServerResponder::StatusCode statusCode;
+    if (status == Success) {
+        responseJsonObject["success"] = true;
+        statusCode = QHttpServerResponse::StatusCode::Ok;
+        responseJsonObject["message"] = "Chosen lesson added successfully";
+    } else if (status == STUDENT_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Student not found";
+    } else if (status == LESSON_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Lesson not found";
+    } else {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::InternalServerError;
+        responseJsonObject["message"] = "Failed to add chosen lesson";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8(), statusCode);
+    return response;
+}
+
 QHttpServerResponse listTeachers(const QHttpServerRequest &request, Database::database &database) {
     // 获取请求的body
     QByteArray body = request.body();
@@ -767,6 +938,7 @@ QHttpServerResponse listTeachers(const QHttpServerRequest &request, Database::da
             QJsonObject teacherObject;
             teacherObject["Id"] = teacher.Id;
             teacherObject["Name"] = teacher.Name;
+            teacherObject["Unit"] = teacher.Unit;
             QJsonArray teachingLessonsArray;
             for (const auto &lesson: teacher.TeachingLessons) {
                 teachingLessonsArray.append(lesson);
@@ -885,6 +1057,60 @@ QHttpServerResponse listLessons(const QHttpServerRequest &request, Database::dat
     return response;
 }
 
+QHttpServerResponse addAccount(const QHttpServerRequest &request, Database::database &database) {
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 验证权限
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8(), QHttpServerResponder::StatusCode::Forbidden);
+        return response;
+    }
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取账号、密码、账户类型和是否为超级用户
+    Auth auth;
+    auth.Account = jsonObject["Account"].toString();
+    auth.Secret = jsonObject["Secret"].toString();
+    auth.AccountType = jsonObject["AccountType"].toInt();
+    auth.IsSuper = jsonObject["IsSuper"].toInt();
+
+    // 调用createAccount函数，创建账号
+    status = database.createAccount(auth);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    QHttpServerResponder::StatusCode statusCode;
+    if (status == Success) {
+        responseJsonObject["success"] = true;
+        statusCode = QHttpServerResponse::StatusCode::Ok;
+        responseJsonObject["message"] = "Account created successfully";
+    } else if (status == DUPLICATE) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::Conflict;
+        responseJsonObject["message"] = "Account already exists";
+    } else {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::InternalServerError;
+        responseJsonObject["message"] = "Failed to create account";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8(), statusCode);
+    return response;
+}
+
 QHttpServerResponse deleteLesson(const QHttpServerRequest &request, Database::database &database) {
     // 获取请求的body
     QByteArray body = request.body();
@@ -927,6 +1153,64 @@ QHttpServerResponse deleteLesson(const QHttpServerRequest &request, Database::da
         responseJsonObject["success"] = false;
         statusCode = QHttpServerResponse::StatusCode::InternalServerError;
         responseJsonObject["message"] = "Failed to delete lesson";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8(), statusCode);
+    return response;
+}
+
+QHttpServerResponse addRetake(const QHttpServerRequest &request, Database::database &database) {
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取学生的学号和课程的编号
+    QString studentId = jsonObject["studentId"].toString();
+    Lesson toRetakeLesson;
+    toRetakeLesson.Id = jsonObject["lessonId"].toString();
+    Lesson needRetakeLesson;
+    needRetakeLesson.Id = jsonObject["needRetakeLessonId"].toString();
+    needRetakeLesson.LessonSemester = jsonObject["needRetakeLessonSemester"].toString();
+
+    // 验证权限
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8(), QHttpServerResponder::StatusCode::Forbidden);
+        return response;
+    }
+
+    status = database.addRetake(toRetakeLesson, needRetakeLesson, studentId);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    QHttpServerResponder::StatusCode statusCode;
+    if (status == Success) {
+        responseJsonObject["success"] = true;
+        statusCode = QHttpServerResponse::StatusCode::Ok;
+        responseJsonObject["message"] = "Retake added successfully";
+    } else if (status == STUDENT_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Student not found";
+    } else if (status == LESSON_NOT_FOUND) {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "Lesson not found";
+    } else {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::InternalServerError;
+        responseJsonObject["message"] = "Failed to add retake";
     }
     QJsonDocument responseDoc(responseJsonObject);
     QString responseString = responseDoc.toJson(QJsonDocument::Compact);
@@ -1106,6 +1390,55 @@ QHttpServerResponse changePassword(const QHttpServerRequest &request, Database::
         responseJsonObject["success"] = false;
         statusCode = QHttpServerResponse::StatusCode::InternalServerError;
         responseJsonObject["message"] = "Failed to change password";
+    }
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8(), statusCode);
+    return response;
+}
+
+QHttpServerResponse updateAccount(const QHttpServerRequest &request, Database::database &database) {
+    // 获取请求的body
+    QByteArray body = request.body();
+
+    // 解析body为一个QJsonObject
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+
+    // 从QJsonObject中获取用户名、密码、账户类型和是否为超级用户
+    Auth auth;
+    auth.Account = jsonObject["Account"].toString();
+    auth.AccountType = jsonObject["AccountType"].toInt();
+    auth.IsSuper = jsonObject["IsSuper"].toInt();
+
+    // 验证权限
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8(), QHttpServerResponder::StatusCode::Forbidden);
+        return response;
+    }
+
+    // 更新数据库
+    status = database.updateAccount(auth);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    QHttpServerResponder::StatusCode statusCode;
+    if (status == Success) {
+        responseJsonObject["success"] = true;
+        statusCode = QHttpServerResponse::StatusCode::Ok;
+        responseJsonObject["message"] = "Account updated successfully";
+    } else {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::InternalServerError;
+        responseJsonObject["message"] = "Failed to update account";
     }
     QJsonDocument responseDoc(responseJsonObject);
     QString responseString = responseDoc.toJson(QJsonDocument::Compact);
@@ -1325,6 +1658,49 @@ QHttpServerResponse updateStudentLessonGrade(const QHttpServerRequest &request, 
     return response;
 }
 
+QHttpServerResponse checkAccountSUPER(const QHttpServerRequest &request, Database::database &database) {
+    // 验证权限
+    Status status = verifyAuth(request, SUPER);
+    if (status != Success) {
+        // 如果验证失败，返回错误信息
+        QJsonObject responseJsonObject;
+        responseJsonObject["success"] = false;
+        responseJsonObject["message"] = "No permission";
+        QJsonDocument responseDoc(responseJsonObject);
+        QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+        QHttpServerResponse response("application/json", responseString.toUtf8(), QHttpServerResponder::StatusCode::Forbidden);
+        return response;
+    }
+
+    // 从body中获取账号
+    QByteArray body = request.body();
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    QJsonObject jsonObject = doc.object();
+    QString account = jsonObject["Account"].toString();
+
+    // 调用checkAccount函数
+    bool IsSUPER;
+    database.checkIsSUPER(account, IsSUPER);
+
+    // 创建一个JSON响应
+    QJsonObject responseJsonObject;
+    QHttpServerResponder::StatusCode statusCode;
+    if (IsSUPER) {
+        responseJsonObject["success"] = true;
+        statusCode = QHttpServerResponse::StatusCode::Ok;
+        responseJsonObject["message"] = "This account is SUPER";
+    } else {
+        responseJsonObject["success"] = false;
+        statusCode = QHttpServerResponse::StatusCode::NotFound;
+        responseJsonObject["message"] = "This account is not SUPER";
+    }
+
+    QJsonDocument responseDoc(responseJsonObject);
+    QString responseString = responseDoc.toJson(QJsonDocument::Compact);
+
+    QHttpServerResponse response("application/json", responseString.toUtf8(), statusCode);
+    return response;
+}
 
 void addRoute(QHttpServer &httpServer, Database::database database) {
     httpServer.route("/", [](const QHttpServerRequest &request) {
@@ -1355,9 +1731,9 @@ void addRoute(QHttpServer &httpServer, Database::database database) {
                      [&database](const QHttpServerRequest &request) {
                          return addTeachingLessons(request, database);
                      });
-    httpServer.route("/api/deleteStudentInformation/", QHttpServerRequest::Method::Post,
+    httpServer.route("/api/deleteStudent/", QHttpServerRequest::Method::Post,
                      [&database](const QHttpServerRequest &request) {
-                         return deleteStudentInformation(request, database);
+                         return deleteStudent(request, database);
                      });
     httpServer.route("/api/listStudents/", QHttpServerRequest::Method::Post,
                      [&database](const QHttpServerRequest &request) {
@@ -1411,6 +1787,35 @@ void addRoute(QHttpServer &httpServer, Database::database database) {
                      [&database](const QHttpServerRequest &request) {
                          return changePassword(request, database);
                      });
+    httpServer.route("/api/addAccount/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return addAccount(request, database);
+                     });
+    httpServer.route("/api/checkAccountSUPER/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return checkAccountSUPER(request, database);
+                     });
+    httpServer.route("/api/updateAccount/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return updateAccount(request, database);
+                     });
+    httpServer.route("/api/updateLessonChosenStudent/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return updateLessonChosenStudent(request, database);
+                     });
+    httpServer.route("/api/deleteChosenLesson/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return deleteChosenLesson(request, database);
+                     });
+    httpServer.route("/api/addChosenLesson/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return addChosenLesson(request, database);
+                     });
+    httpServer.route("/api/addRetake/", QHttpServerRequest::Method::Post,
+                     [&database](const QHttpServerRequest &request) {
+                         return addRetake(request, database);
+                     });
+
 }
 
 void addLogger(QHttpServer &httpServer) {

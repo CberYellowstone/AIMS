@@ -40,6 +40,9 @@ public:
     QString currentLessonId;
     QString lastClickedStudentId{};
     QPair<int, int> lastClickedCell{};
+    QStringList lessonStudentList{};
+    QStringList lessonStudentToAssignList{};
+    QStringList lessonStudentToUnassignList{};
 
     explicit StudentListForm(QMainWindow *parent = nullptr) : QMainWindow(parent) {
         setupUi(this);
@@ -66,9 +69,19 @@ public slots:
         show();
     }
 
+    void showLessonChosenList(const QString &lessonId) {
+        currentLessonId = lessonId;
+        setWindowTitle("课程已选学生列表");
+        stackedWidget->setCurrentIndex(2);
+        fillTableWidget_LessonChosen();
+        show();
+    }
+
     void fillTableWidget_LessonStudent();
 
     void fillTableWidget_LessonGrade();
+
+    void fillTableWidget_LessonChosen();
 
     void onTableWidgetLessonGradeCellDoubleClicked(int row, int column) {
         lastClickedCell = {row, column};
@@ -76,6 +89,19 @@ public slots:
     }
 
     void doCheckAndSendGrade();
+
+    void finishChoosing();
+
+    void addStudentToLesson() {
+        tableWidget_LessonChosenStudent->insertRow(tableWidget_LessonChosenStudent->rowCount());
+        auto *item = new QTableWidgetItem;
+        item->setTextAlignment(Qt::AlignCenter);
+        tableWidget_LessonChosenStudent->setItem(tableWidget_LessonChosenStudent->rowCount() - 1, 0, item);
+    }
+
+    void removeStudentFromLesson() {
+        tableWidget_LessonChosenStudent->removeRow(tableWidget_LessonChosenStudent->currentRow());
+    }
 };
 
 class LoginForm : public QWidget, public Ui::LoginForm {
@@ -99,8 +125,8 @@ public slots:
 
     void login() {
         // ONLY FOR DEBUG
-        lineEdit_Account->setText("114514");
-        lineEdit_Password->setText("1");
+//        lineEdit_Account->setText("114514");
+//        lineEdit_Password->setText("1");
 
         if (lineEdit_Account->text().isEmpty() || lineEdit_Password->text().isEmpty()) {
             QMessageBox::warning(this, "警告", "账号或密码不能为空");
@@ -200,6 +226,9 @@ public:
     QMap<QString, Student> localStudentsTemp;
     QMap<QString, Teacher> localTeachersTemp;
     QMap<QString, Lesson> localLessonsTemp;
+    QVector<Lesson> localLessonsListTemp;
+    QVector<Student> localStudentsListTemp;
+    QVector<Teacher> localTeachersListTemp;
     QString currentSemester;
     int currentYear{};
     QMap<QPair<QString, QString>, Grade> localGradesTemp;
@@ -267,7 +296,7 @@ public:
             connect(pushButton_3, &QPushButton::clicked, this, &AIMSMainWindow::switchStackedWidgetToStudent_Grade);
         } else if (AccountType == TEACHER) {
             pushButton_1->setText("我的排课");
-            pushButton_2->setText("课程管理");
+            pushButton_2->setText("我的课程");
             pushButton_3->setText("学生成绩");
             connect(pushButton_1, &QPushButton::clicked, this, &AIMSMainWindow::switchStackedWidgetToTeacher_Schedule);
             connect(pushButton_2, &QPushButton::clicked, this, &AIMSMainWindow::switchStackedWidgetToTeacher_Teaching);
@@ -276,7 +305,9 @@ public:
                 pushButton_4->setText("用户管理");
                 pushButton_5->setText("课程管理");
                 pushButton_6->setText("成绩管理");
-
+                connect(pushButton_4, &QPushButton::clicked, this, &AIMSMainWindow::switchStackedWidgetToSuper_Account);
+                connect(pushButton_5, &QPushButton::clicked, this, &AIMSMainWindow::switchStackedWidgetToSuper_Lesson);
+                connect(pushButton_6, &QPushButton::clicked, this, &AIMSMainWindow::switchStackedWidgetToSuper_Grade);
             } else {
                 pushButton_4->hide();
                 pushButton_5->hide();
@@ -291,7 +322,7 @@ public:
         pushButton_1->setChecked(true);
         pushButton_2->setChecked(false);
         pushButton_3->setChecked(false);
-        resizeTableWidget();
+        resizeWidget();
         stackedWidget->setCurrentIndex(1);
         updateChosenLessons();
 
@@ -309,7 +340,7 @@ public:
         pushButton_1->setChecked(false);
         pushButton_2->setChecked(true);
         pushButton_3->setChecked(false);
-        resizeTableWidget();
+        resizeWidget();
         stackedWidget->setCurrentIndex(2);
         updateChosenLessons();
 
@@ -328,7 +359,7 @@ public:
         pushButton_1->setChecked(false);
         pushButton_2->setChecked(false);
         pushButton_3->setChecked(true);
-        resizeTableWidget();
+        resizeWidget();
         stackedWidget->setCurrentIndex(3);
         updateChosenLessons();
 
@@ -347,7 +378,10 @@ public:
         pushButton_1->setChecked(true);
         pushButton_2->setChecked(false);
         pushButton_3->setChecked(false);
-        resizeTableWidget();
+        pushButton_4->setChecked(false);
+        pushButton_5->setChecked(false);
+        pushButton_6->setChecked(false);
+        resizeWidget();
         stackedWidget->setCurrentIndex(4);
         updateTeachingLessons();
 
@@ -365,7 +399,10 @@ public:
         pushButton_1->setChecked(false);
         pushButton_2->setChecked(true);
         pushButton_3->setChecked(false);
-        resizeTableWidget();
+        pushButton_4->setChecked(false);
+        pushButton_5->setChecked(false);
+        pushButton_6->setChecked(false);
+        resizeWidget();
         stackedWidget->setCurrentIndex(5);
         updateTeachingLessons();
 
@@ -384,7 +421,10 @@ public:
         pushButton_1->setChecked(false);
         pushButton_2->setChecked(false);
         pushButton_3->setChecked(true);
-        resizeTableWidget();
+        pushButton_4->setChecked(false);
+        pushButton_5->setChecked(false);
+        pushButton_6->setChecked(false);
+        resizeWidget();
         stackedWidget->setCurrentIndex(6);
         updateTeachingLessons();
 
@@ -397,6 +437,37 @@ public:
         comboBox_Teacher_Grade_Semester->addItem("(全部)");
         comboBox_Teacher_Grade_Semester->setCurrentText("(全部)");
         fillTableWidget_Teacher_Grade();
+    }
+
+    void switchStackedWidgetToSuper_Lesson() {
+        pushButton_1->setChecked(false);
+        pushButton_2->setChecked(false);
+        pushButton_3->setChecked(false);
+        pushButton_4->setChecked(false);
+        pushButton_5->setChecked(true);
+        pushButton_6->setChecked(false);
+        resizeWidget();
+        stackedWidget->setCurrentIndex(8);
+
+        for (int i = currentYear - 2; i < currentYear + 1; i++) {
+            for (int j = 1; j < 3; j++) {
+                QString semester = QString::number(i) + "-" + QString::number(i + 1) + "-" + QString::number(j);
+                comboBox_Super_Lesson_Semester->addItem(semester);
+            }
+        }
+        comboBox_Super_Lesson_Semester->addItem("(全部)");
+        comboBox_Super_Lesson_Semester->setCurrentText("(全部)");
+
+        for (int i = currentYear - 2; i < currentYear + 1; i++) {
+            for (int j = 1; j < 3; j++) {
+                QString semester = QString::number(i) + "-" + QString::number(i + 1) + "-" + QString::number(j);
+                comboBox_Super_Lesson_Assign_Semester->addItem(semester);
+            }
+        }
+        comboBox_Super_Lesson_Assign_Semester->addItem("(全部)");
+        comboBox_Super_Lesson_Assign_Semester->setCurrentText("(全部)");
+        fillTableWidget_Super_Lesson();
+        fillTableWidget_Super_Lesson_Assign();
     }
 
     void updateStudentLessonGrade(const Grade &grade) {
@@ -447,6 +518,27 @@ public:
         }
     }
 
+    void switchStackedWidgetToSuper_Grade() {
+        pushButton_1->setChecked(false);
+        pushButton_2->setChecked(false);
+        pushButton_3->setChecked(false);
+        pushButton_4->setChecked(false);
+        pushButton_5->setChecked(false);
+        pushButton_6->setChecked(true);
+        resizeWidget();
+        stackedWidget->setCurrentIndex(9);
+
+        for (int i = currentYear - 2; i < currentYear + 1; i++) {
+            for (int j = 1; j < 3; j++) {
+                QString semester = QString::number(i) + "-" + QString::number(i + 1) + "-" + QString::number(j);
+                comboBox_Super_Grade_Semester->addItem(semester);
+            }
+        }
+        comboBox_Super_Grade_Semester->addItem("(全部)");
+        comboBox_Super_Grade_Semester->setCurrentText("(全部)");
+        fillTableWidget_Super_Grade();
+    }
+
     void updateChosenLessons() {
         chosenLessons.clear();
         for (auto &&i: currentStudent.ChosenLessons) {
@@ -466,6 +558,19 @@ public:
             existingText += text;
             item->setText(existingText);
         }
+    }
+
+    void switchStackedWidgetToSuper_Account() {
+        pushButton_1->setChecked(false);
+        pushButton_2->setChecked(false);
+        pushButton_3->setChecked(false);
+        pushButton_4->setChecked(true);
+        pushButton_5->setChecked(false);
+        pushButton_6->setChecked(false);
+        resizeWidget();
+        stackedWidget->setCurrentIndex(7);
+        fillTableWidget_Super_Student();
+        fillTableWidget_Super_Teacher();
     }
 
     void appendTextToTeacherTableItem(int row, int column, const QString &text) {
@@ -598,7 +703,7 @@ public:
             // 使用回复中的数据填充教师对象
             teacher.Id = json["Id"].toString();
             teacher.Name = json["Name"].toString();
-            teacher.Uint = json["Uint"].toString();
+            teacher.Unit = json["Unit"].toString();
 
             // 将教授课程的JSON数组转换为QVector
             QJsonArray teachingLessonsArray = json["TeachingLessons"].toArray();
@@ -621,6 +726,236 @@ public:
         }
     }
 
+    void updateAccount(const Auth &auth) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/updateAccount/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Account", auth.Account);
+        json.insert("AccountType", auth.AccountType);
+        json.insert("IsSuper", auth.IsSuper);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void updateStudentInformation(const Student &student) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/updateStudentInformation/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Id", student.Id);
+        json.insert("Name", student.Name);
+        json.insert("College", student.College);
+        json.insert("Class", student.Class);
+        json.insert("Age", student.Age);
+        json.insert("Major", student.Major);
+        json.insert("PhoneNumber", student.PhoneNumber);
+        json.insert("DormitoryArea", student.DormitoryArea);
+        json.insert("DormitoryNum", student.DormitoryNum);
+        json.insert("Sex", student.Sex);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void updateTeacherInformation(const Teacher &teacher) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/updateTeacherInformation/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Id", teacher.Id);
+        json.insert("Name", teacher.Name);
+        json.insert("Unit", teacher.Unit);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void deleteTeacher(const QString &teacherId) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/deleteTeacher/";
+        request.setUrl(QUrl(URL));
+
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Id", teacherId);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void deleteStudent(const QString &studentId) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/deleteStudent/";
+        request.setUrl(QUrl(URL));
+
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Id", studentId);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
     void getLessonByIdFromLocal(const QString &id, Lesson &lesson) {
         if (localLessonsTemp.contains(id)) {
             lesson = localLessonsTemp[id];
@@ -636,6 +971,55 @@ public:
         } else {
             getStudentById(id, student);
             localStudentsTemp.insert(id, student);
+        }
+    }
+
+    void addAccount(const Auth &auth, const QString &password) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/addAccount/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        QString Secret = QCryptographicHash::hash(
+                QCryptographicHash::hash(password.toUtf8(), QCryptographicHash::Md5).toHex() + SALT,
+                QCryptographicHash::Md5).toHex();
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Account", auth.Account);
+        json.insert("AccountType", auth.AccountType);
+        json.insert("IsSuper", auth.IsSuper);
+        json.insert("Secret", Secret);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
         }
     }
 
@@ -658,8 +1042,304 @@ public:
         } else {
             getTeacherByIdFromLocal(account, currentTeacher);
             label_NameId->setText("教师 " + currentTeacher.Name + " " + currentTeacher.Id);
-            label_Unit->setText(currentTeacher.Uint);
+            label_Unit->setText(currentTeacher.Unit);
             label_ClassTitle->hide();
+        }
+    }
+
+    void updateLessonInformation(const Lesson &lesson) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/updateLessonInformation/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Id", lesson.Id);
+        json.insert("LessonName", lesson.LessonName);
+        json.insert("LessonArea", lesson.LessonArea);
+        json.insert("LessonCredits", lesson.LessonCredits);
+        json.insert("LessonSemester", lesson.LessonSemester);
+        json.insert("TeacherId", lesson.TeacherId);
+
+        // 将选课学生的QVector转换为JSON数组
+        QJsonArray lessonStudentsArray;
+        for (auto &&i: lesson.LessonStudents) {
+            lessonStudentsArray.append(i);
+        }
+        json.insert("LessonStudents", lessonStudentsArray);
+
+        // 将课程时间和地点的QMap转换为JSON对象
+        QJsonObject lessonTimeAndLocationsObject;
+        for (auto &&i: lesson.LessonTimeAndLocations.keys()) {
+            QJsonArray timeAndLocationArray;
+            for (auto &&j: lesson.LessonTimeAndLocations[i]) {
+                timeAndLocationArray.append(j);
+            }
+            lessonTimeAndLocationsObject.insert(i, timeAndLocationArray);
+        }
+        json.insert("LessonTimeAndLocations", lessonTimeAndLocationsObject);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void updateLessonChosenStudent(const Lesson &lesson) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/updateLessonChosenStudent/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Id", lesson.Id);
+
+        // 将选课学生的QVector转换为JSON数组
+        QJsonArray lessonStudentsArray;
+        for (auto &&i: lesson.LessonStudents) {
+            lessonStudentsArray.append(i);
+        }
+        json.insert("LessonStudents", lessonStudentsArray);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void addChosenLesson(const QString &studentId, const QString &lessonId) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/addChosenLesson/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("studentId", studentId);
+        json.insert("lessonId", lessonId);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void addRetake(const QString &studentId, const QString &needRetakeLessonId, const QString &retakeLessonId) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/addRetake/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("studentId", studentId);
+        json.insert("needRetakeLessonId", needRetakeLessonId);
+        json.insert("lessonId", retakeLessonId);
+
+        Lesson needRetakeLesson;
+        getLessonByIdFromLocal(needRetakeLessonId, needRetakeLesson);
+        json.insert("needRetakeLessonSemester", needRetakeLesson.LessonSemester);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void deleteChosenLesson(const QString &studentId, const QString &lessonId) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/deleteChosenLesson/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("studentId", studentId);
+        json.insert("lessonId", lessonId);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+    }
+
+    void deleteLesson(const QString &lessonId) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/deleteLesson/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Id", lessonId);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
         }
     }
 
@@ -778,14 +1458,26 @@ public:
         }
     }
 
-    void resizeTableWidget() {
+    void resizeWidget() {
         tableWidget_Schedule->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
         tableWidget_Chosen->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
         tableWidget_Grade->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
         tableWidget_Teacher_Schedule->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
         tableWidget_Teacher_Teaching->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
         tableWidget_Teacher_Grade->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
-
+        tabWidget_Super_Grade->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
+        tableWidget_Super_Grade->setFixedSize(tabWidget_Super_Grade->size().width() - 5,
+                                              tabWidget_Super_Grade->size().height() - 70);
+        tabWidget_Super_Account->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
+        tableWidget_Super_Student->setFixedSize(tabWidget_Super_Account->size().width() - 5,
+                                                tabWidget_Super_Account->size().height() - 70);
+        tableWidget_Super_Teacher->setFixedSize(tabWidget_Super_Account->size().width() - 5,
+                                                tabWidget_Super_Account->size().height() - 70);
+        tabWidget_Super_Lesson->setFixedSize(stackedWidget->size().width(), stackedWidget->size().height());
+        tableWidget_Super_Lesson->setFixedSize(tabWidget_Super_Lesson->size().width() - 5,
+                                               tabWidget_Super_Lesson->size().height() - 70);
+        tableWidget_Super_Lesson_Assign->setFixedSize(tabWidget_Super_Lesson->size().width() - 5,
+                                                      tabWidget_Super_Lesson->size().height() - 70);
         for (int i = 0; i < 7; i++) {
             int width = (tableWidget_Schedule->size().width() - 70) * 1 / 7;
             tableWidget_Schedule->setColumnWidth(i, width);
@@ -795,26 +1487,104 @@ public:
             tableWidget_Teacher_Schedule->setColumnWidth(i, width);
         }
         for (int i = 0; i < 9; i++) {
-            int width = (tableWidget_Grade->size().width()) * 1 / 8;
+            int width = (tableWidget_Grade->size().width() - 20) * 1 / 8;
             tableWidget_Grade->setColumnWidth(i, width);
         }
         for (int i = 0; i < 6; i++) {
-            int width = (tableWidget_Chosen->size().width()) * 1 / 6;
+            int width = (tableWidget_Chosen->size().width() - 20) * 1 / 6;
             tableWidget_Chosen->setColumnWidth(i, width);
         }
         for (int i = 0; i < 8; i++) {
-            int width = (tableWidget_Teacher_Teaching->size().width()) * 1 / 8;
+            int width = (tableWidget_Teacher_Teaching->size().width() - 20) * 1 / 8;
             tableWidget_Teacher_Teaching->setColumnWidth(i, width);
         }
         for (int i = 0; i < 8; i++) {
-            int width = (tableWidget_Teacher_Grade->size().width()) * 1 / 8;
+            int width = (tableWidget_Teacher_Grade->size().width() - 20) * 1 / 8;
             tableWidget_Teacher_Grade->setColumnWidth(i, width);
+        }
+        for (int i = 0; i < 8; i++) {
+            int width = (tableWidget_Super_Grade->size().width() - 20) * 1 / 8;
+            tableWidget_Super_Grade->setColumnWidth(i, width);
+        }
+        for (int i = 0; i < 11; i++) {
+            int width = (tableWidget_Super_Student->size().width() - 20) * 1 / 11;
+            tableWidget_Super_Student->setColumnWidth(i, width);
+        }
+        for (int i = 0; i < 5; i++) {
+            int width = (tableWidget_Super_Teacher->size().width() - 20) * 1 / 5;
+            tableWidget_Super_Teacher->setColumnWidth(i, width);
+        }
+        for (int i = 0; i < 8; i++) {
+            int width = (tableWidget_Super_Lesson->size().width() - 20) * 1 / 8;
+            tableWidget_Super_Lesson->setColumnWidth(i, width);
+        }
+        for (int i = 0; i < 8; i++) {
+            int width = (tableWidget_Super_Lesson_Assign->size().width() - 20) * 1 / 8;
+            tableWidget_Super_Lesson_Assign->setColumnWidth(i, width);
         }
         tableWidget_Teacher_Teaching->resizeRowsToContents();
         tableWidget_Schedule->resizeRowsToContents();
         tableWidget_Teacher_Schedule->resizeRowsToContents();
         tableWidget_Chosen->resizeRowsToContents();
+        tableWidget_Grade->resizeRowsToContents();
+        tableWidget_Teacher_Grade->resizeRowsToContents();
+        tableWidget_Super_Grade->resizeRowsToContents();
+        tableWidget_Super_Student->resizeRowsToContents();
+        tableWidget_Super_Teacher->resizeRowsToContents();
+        tableWidget_Super_Lesson->resizeRowsToContents();
     }
+
+    bool checkIsSUPER(QString &Account) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/checkAccountSUPER/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QJsonObject json;
+        json.insert("Account", Account);
+
+        QJsonDocument doc(json);
+        QByteArray data = doc.toJson();
+        QNetworkReply *reply = manager.post(request, data);
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        bool isSuper = false;
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+
+        // 解析回复
+        QByteArray responseData = reply->readAll();
+        doc = QJsonDocument::fromJson(responseData);
+        json = doc.object();
+
+        return json["success"].toBool();
+    }
+
 
     void getStudentLessonGrade(const QString &studentId, const QString &lessonId, Grade &grade) {
         QNetworkAccessManager manager;
@@ -975,8 +1745,259 @@ public:
         }
     }
 
+    void listLessonsFromLocal(QVector<Lesson> &lessons) {
+        if (localLessonsListTemp.isEmpty()) {
+            listLessons(localLessonsListTemp);
+        }
+        for (auto &&i: localLessonsListTemp) {
+            lessons.append(i);
+        }
+    }
+
+    void listLessons(QVector<Lesson> &lessons) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/listLessons/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QNetworkReply *reply = manager.post(request, "");
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+
+        // 解析回复
+        QByteArray responseData = reply->readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(responseData);
+        QJsonObject docJson = doc.object();
+
+        if (docJson["success"].toBool()) {
+            // 使用回复中的数据填充课程对象
+            QJsonArray lessonsArray = docJson["lessons"].toArray();
+            for (auto &&i: lessonsArray) {
+                Lesson lesson;
+                QJsonObject lessonObject = i.toObject();
+                lesson.Id = lessonObject["Id"].toString();
+                lesson.LessonArea = lessonObject["LessonArea"].toString();
+                lesson.LessonCredits = lessonObject["LessonCredits"].toInt();
+                lesson.LessonSemester = lessonObject["LessonSemester"].toString();
+                lesson.LessonName = lessonObject["LessonName"].toString();
+                lesson.TeacherId = lessonObject["TeacherId"].toString();
+
+                // 将选课学生的JSON数组转换为QVector
+                QJsonArray lessonStudentsArray = lessonObject["LessonStudents"].toArray();
+                for (auto &&j: lessonStudentsArray) {
+                    lesson.LessonStudents.append(j.toString());
+                }
+
+                // 将课程时间和地点的JSON对象转换为QMap
+                QJsonObject lessonTimeAndLocationsObject = lessonObject["LessonTimeAndLocations"].toObject();
+                for (auto &&j: lessonTimeAndLocationsObject.keys()) {
+                    QJsonArray timeAndLocationArray = lessonTimeAndLocationsObject[j].toArray();
+                    QVector<QString> timeAndLocation;
+                    for (auto &&k: timeAndLocationArray) {
+                        timeAndLocation.append(k.toString());
+                    }
+                    lesson.LessonTimeAndLocations.insert(j, timeAndLocation);
+                }
+                lessons.append(lesson);
+            }
+        } else {
+            // 请求失败，获取并显示错误消息
+            QString message = docJson["message"].toString();
+            QMessageBox::warning((QWidget *) this, "警告", "获取课程信息失败：" + message);
+        }
+    }
+
+
+    void listStudentsFromLocal(QVector<Student> &students) {
+        if (localStudentsListTemp.isEmpty()) {
+            listStudents(localStudentsListTemp);
+        }
+        for (auto &&i: localStudentsListTemp) {
+            students.append(i);
+        }
+    }
+
+    void listTeachersFromLocal(QVector<Teacher> &teachers) {
+        if (localTeachersListTemp.isEmpty()) {
+            listTeachers(localTeachersListTemp);
+        }
+        for (auto &&i: localTeachersListTemp) {
+            teachers.append(i);
+        }
+    }
+
+    void listTeachers(QVector<Teacher> &teachers) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/listTeachers/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QNetworkReply *reply = manager.post(request, "");
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+
+        // 解析回复
+        QByteArray responseData = reply->readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(responseData);
+        QJsonObject docJson = doc.object();
+
+        if (docJson["success"].toBool()) {
+            // 使用回复中的数据填充教师对象
+            QJsonArray teachersArray = docJson["teachers"].toArray();
+            for (auto &&i: teachersArray) {
+                Teacher teacher;
+                QJsonObject teacherObject = i.toObject();
+                teacher.Id = teacherObject["Id"].toString();
+                teacher.Name = teacherObject["Name"].toString();
+                teacher.Unit = teacherObject["Unit"].toString();
+
+                // 将教授课填入QVector
+                QJsonArray teachingLessonsArray = teacherObject["TeachingLessons"].toArray();
+                for (auto &&j: teachingLessonsArray) {
+                    teacher.TeachingLessons.append(j.toString());
+                }
+                teachers.append(teacher);
+            }
+        } else {
+            // 请求失败，获取并显示错误消息
+            QString message = docJson["message"].toString();
+            QMessageBox::warning((QWidget *) this, "警告", "获取教师列表失败：" + message);
+        }
+    }
+
+    void listStudents(QVector<Student> &students) {
+        QNetworkAccessManager manager;
+        QNetworkRequest request;
+
+        // 设置请求的URL
+        QString URL = serverURL + "/api/listStudents/";
+        request.setUrl(QUrl(URL));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", ("Bearer " + JWT).toUtf8());
+
+        // 发送POST请求
+        QNetworkReply *reply = manager.post(request, "");
+
+        // 创建一个事件循环，直到收到回复为止
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(3000);  // 3秒超时
+        loop.exec();
+
+        // 检查错误
+        if (timer.isActive()) {
+            // 请求在3秒内完成
+            timer.stop();
+            if (reply->error() != QNetworkReply::NoError && reply->error() != QNetworkReply::ContentNotFoundError) {
+                QMessageBox::warning((QWidget *) this, "警告", "请求失败：" + QVariant::fromValue(reply->error()).toString());
+            }
+        } else {
+            // 请求在3秒内未完成
+            disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+            reply->abort();
+            reply->deleteLater();
+            QMessageBox::warning((QWidget *) this, "警告", "请求超时");
+        }
+
+        // 解析回复
+        QByteArray responseData = reply->readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(responseData);
+        QJsonObject docJson = doc.object();
+
+        if (docJson["success"].toBool()) {
+            // 使用回复中的数据填充学生对象
+            QJsonArray studentsArray = docJson["students"].toArray();
+            for (auto &&i: studentsArray) {
+                Student student;
+                QJsonObject studentObject = i.toObject();
+                student.Id = studentObject["Id"].toString();
+                student.Name = studentObject["Name"].toString();
+                student.Sex = studentObject["Sex"].toString();
+                student.College = studentObject["College"].toString();
+                student.Major = studentObject["Major"].toString();
+                student.Class = studentObject["Class"].toString();
+                student.Age = studentObject["Age"].toInt();
+                student.PhoneNumber = studentObject["PhoneNumber"].toString();
+                student.DormitoryArea = studentObject["DormitoryArea"].toString();
+                student.DormitoryNum = studentObject["DormitoryNum"].toString();
+
+                // 将已选课程的JSON数组转换为QVector
+                QJsonArray chosenLessonsArray = studentObject["ChosenLessons"].toArray();
+                for (auto &&j: chosenLessonsArray) {
+                    student.ChosenLessons.append(j.toString());
+                }
+                students.append(student);
+            }
+        } else {
+            // 请求失败，获取并显示错误消息
+            QString message = docJson["message"].toString();
+            QMessageBox::warning((QWidget *) this, "警告", "获取学生信息失败：" + message);
+        }
+    }
 
 public slots:
+
+    void doAddRetake() {
+        addRetake(lineEdit_Super_Grade_RetakeId->text(), lineEdit_Super_Grade_ToRetakeId->text(),
+                  lineEdit_Super_Grade_StudentId->text());
+    };
 
     void doLogout() {
         isLogin = false;
@@ -1211,6 +2232,9 @@ public slots:
         localLessonsTemp.clear();
         localGradesTemp.clear();
         localStudentsTemp.clear();
+        localLessonClassesTemp.clear();
+        localLessonsListTemp.clear();
+        localTeachersListTemp.clear();
         QMessageBox::information(this, "提示", "缓存已清除");
     }
 
@@ -1475,6 +2499,689 @@ public slots:
         tableWidget_Teacher_Grade->resizeRowsToContents();
     }
 
+    void fillTableWidget_Super_Lesson() {
+        tableWidget_Super_Lesson->setRowCount(0);
+        QVector<Lesson> ToBeShownLessons;
+        QVector<Lesson> lessons;
+        listLessonsFromLocal(lessons);
+
+        for (auto &&lesson: lessons) {
+            //检查是否为当前选择学期的课程
+            if (comboBox_Super_Lesson_Semester->currentText() == "(全部)" ||
+                lesson.LessonSemester == comboBox_Super_Lesson_Semester->currentText()) {
+                // 检查搜索框是否为空
+                if (lineEdit_Super_Lesson_Search->text().isEmpty()) {
+                    ToBeShownLessons.append(lesson);
+                } else {
+                    //空格分词
+                    QStringList words = lineEdit_Super_Lesson_Search->text().split(" ");
+                    //在课程编号、课程名称、授课教师、上课校区中匹配，全部满足则加入
+                    bool isMatched = true;
+                    for (auto &&word: words) {
+                        Teacher teacher;
+                        getTeacherByIdFromLocal(lesson.TeacherId, teacher);
+                        if (lesson.Id.contains(word) || lesson.LessonName.contains(word) ||
+                            lesson.LessonArea.contains(word) || teacher.Name.contains(word)) {
+                            continue;
+                        } else {
+                            isMatched = false;
+                            break;
+                        }
+                    }
+                    if (isMatched) {
+                        ToBeShownLessons.append(lesson);
+                    }
+                }
+            }
+        }
+        for (auto &&lesson: ToBeShownLessons) {
+            // 插入新行
+            int row = tableWidget_Super_Lesson->rowCount();
+            tableWidget_Super_Lesson->insertRow(row);
+
+            Teacher teacher;
+            getTeacherByIdFromLocal(lesson.TeacherId, teacher);
+            // 创建表格项并设置文本居中
+            auto *item0 = new QTableWidgetItem(lesson.Id);
+            item0->setTextAlignment(Qt::AlignCenter);
+            item0->setFlags(item0->flags() & ~Qt::ItemIsEditable);
+            auto *item1 = new QTableWidgetItem(lesson.LessonName);
+            item1->setTextAlignment(Qt::AlignCenter);
+            auto *item2 = new QTableWidgetItem(teacher.Id);
+            item2->setTextAlignment(Qt::AlignCenter);
+            auto *item3 = new QTableWidgetItem(QString::number(lesson.LessonCredits));
+            item3->setTextAlignment(Qt::AlignCenter);
+            QString timeAndLocation;
+            for (auto &&pair: lesson.LessonTimeAndLocations.toStdMap()) {
+                timeAndLocation += pair.first + " " + pair.second[0] + " " + pair.second[1] + ",";
+            }
+            timeAndLocation.chop(1);
+            auto *item4 = new QTableWidgetItem(lesson.LessonSemester);
+            item4->setTextAlignment(Qt::AlignCenter);
+            auto *item5 = new QTableWidgetItem(lesson.LessonArea);
+            item5->setTextAlignment(Qt::AlignCenter);
+            auto *item6 = new QTableWidgetItem(timeAndLocation);
+            item6->setTextAlignment(Qt::AlignCenter);
+            auto *label = new QLabel();
+            label->setText(QString("<a href='UPDATE/%1/%2'>更新</a> <a href='DELETE/%1/%2'>删除</a>").arg(lesson.Id).arg(row));
+            label->setAlignment(Qt::AlignCenter);
+            connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::updateOrDeleteLesson);
+
+            tableWidget_Super_Lesson->setCellWidget(row, 7, label);
+
+            // 将表格项添加到表格中
+            tableWidget_Super_Lesson->setItem(row, 0, item0);
+            tableWidget_Super_Lesson->setItem(row, 1, item1);
+            tableWidget_Super_Lesson->setItem(row, 2, item2);
+            tableWidget_Super_Lesson->setItem(row, 3, item3);
+            tableWidget_Super_Lesson->setItem(row, 4, item4);
+            tableWidget_Super_Lesson->setItem(row, 5, item5);
+            tableWidget_Super_Lesson->setItem(row, 6, item6);
+        }
+        tableWidget_Super_Lesson->resizeRowsToContents();
+    }
+
+    void fillTableWidget_Super_Lesson_Assign() {
+        tableWidget_Super_Lesson_Assign->setRowCount(0);
+        QVector<Lesson> ToBeShownLessons;
+        //和fillTableWidget_Super_Grade一样
+        QVector<Lesson> lessons;
+        listLessonsFromLocal(lessons);
+        for (auto &&lesson: lessons) {
+            //检查是否为当前选择学期的课程
+            if (comboBox_Super_Lesson_Assign_Semester->currentText() == "(全部)" ||
+                lesson.LessonSemester == comboBox_Super_Lesson_Assign_Semester->currentText()) {
+                // 检查搜索框是否为空
+                if (lineEdit_Super_Lesson_Assign_Search->text().isEmpty()) {
+                    ToBeShownLessons.append(lesson);
+                } else {
+                    //空格分词
+                    QStringList words = lineEdit_Super_Lesson_Assign_Search->text().split(" ");
+                    bool isMatched = true;
+                    QVector<QString> classes;
+                    listLessonClassesFromLocal(lesson.Id, classes);
+                    QString classString;
+                    for (auto &&i: classes) {
+                        classString += i + ",";
+                    }
+                    for (auto &&word: words) {
+                        if (lesson.Id.contains(word) || lesson.LessonName.contains(word) ||
+                            lesson.LessonArea.contains(word) || classString.contains(word)) {
+                            continue;
+                        } else {
+                            isMatched = false;
+                            break;
+                        }
+                    }
+                    if (isMatched) {
+                        ToBeShownLessons.append(lesson);
+                    }
+                }
+            }
+        }
+
+        for (auto &&lesson: ToBeShownLessons) {
+            // 插入新行
+            int row = tableWidget_Super_Lesson_Assign->rowCount();
+            tableWidget_Super_Lesson_Assign->insertRow(row);
+
+            // 创建表格项并设置文本居中
+            auto *item0 = new QTableWidgetItem(lesson.LessonSemester);
+            item0->setTextAlignment(Qt::AlignCenter);
+            auto *item1 = new QTableWidgetItem(lesson.Id);
+            item1->setTextAlignment(Qt::AlignCenter);
+            auto *item2 = new QTableWidgetItem(lesson.LessonName);
+            item2->setTextAlignment(Qt::AlignCenter);
+            auto *item3 = new QTableWidgetItem(lesson.LessonArea);
+            item3->setTextAlignment(Qt::AlignCenter);
+            QString timeAndLocation;
+            for (auto &&pair: lesson.LessonTimeAndLocations.toStdMap()) {
+                timeAndLocation += pair.first + " " + pair.second[0] + " " + pair.second[1] + ",";
+            }
+            timeAndLocation.chop(1);
+            auto *item4 = new QTableWidgetItem(timeAndLocation);
+            item4->setTextAlignment(Qt::AlignCenter);
+            QVector<QString> classes;
+            listLessonClassesFromLocal(lesson.Id, classes);
+            QString classString;
+            for (auto &&i: classes) {
+                classString += i + ",";
+            }
+            classString.chop(1);
+            auto *item5 = new QTableWidgetItem(classString);
+            item5->setTextAlignment(Qt::AlignCenter);
+            auto *item6 = new QTableWidgetItem(QString::number(lesson.LessonStudents.size()));
+            item6->setTextAlignment(Qt::AlignCenter);
+            auto *label = new QLabel();
+            label->setText(QString("<a href='%1'>选课管理</a>").arg(lesson.Id));
+            label->setAlignment(Qt::AlignCenter);
+            connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::openLessonChosenList);
+
+            tableWidget_Super_Lesson_Assign->setCellWidget(row, 7, label);
+
+            // 将表格项添加到表格中
+            tableWidget_Super_Lesson_Assign->setItem(row, 0, item0);
+            tableWidget_Super_Lesson_Assign->setItem(row, 1, item1);
+            tableWidget_Super_Lesson_Assign->setItem(row, 2, item2);
+            tableWidget_Super_Lesson_Assign->setItem(row, 3, item3);
+            tableWidget_Super_Lesson_Assign->setItem(row, 4, item4);
+            tableWidget_Super_Lesson_Assign->setItem(row, 5, item5);
+            tableWidget_Super_Lesson_Assign->setItem(row, 6, item6);
+        }
+        tableWidget_Super_Lesson_Assign->resizeRowsToContents();
+    }
+
+    void openLessonChosenList(const QString &lessonId) {
+        Lesson lesson;
+        getLessonByIdFromLocal(lessonId, lesson);
+        auto *p = new StudentListForm(this);
+        p->setWindowTitle("选课学生列表");
+        p->lessonStudentList.clear();
+        for (auto &&studentId: lesson.LessonStudents) {
+            p->lessonStudentList.append(studentId);
+        }
+        p->showLessonChosenList(lessonId);
+    }
+
+    void updateOrDeleteLesson(const QString &link) {
+        QStringList parts = link.split("/");
+        QString operation = parts[0];
+        QString lessonId = parts[1];
+        int row = parts[2].toInt();
+        if (operation == "UPDATE") {
+            Lesson lesson;
+            lesson.Id = lessonId;
+            lesson.LessonName = tableWidget_Super_Lesson->item(row, 1)->text();
+            lesson.TeacherId = tableWidget_Super_Lesson->item(row, 2)->text();
+            lesson.LessonCredits = tableWidget_Super_Lesson->item(row, 3)->text().toInt();
+            lesson.LessonSemester = tableWidget_Super_Lesson->item(row, 4)->text();
+            lesson.LessonArea = tableWidget_Super_Lesson->item(row, 5)->text();
+            QString timeAndLocation = tableWidget_Super_Lesson->item(row, 6)->text();
+            QStringList timeAndLocationList = timeAndLocation.split(",");
+            QMap<QString, QVector<QString>> timeAndLocations;
+            for (auto &&i: timeAndLocationList) {
+                parts = i.split(" ");
+                QString weeks = parts[0];
+                timeAndLocations.insert(weeks, {parts[1], parts[2]});
+            }
+            lesson.LessonTimeAndLocations = timeAndLocations;
+            updateLessonInformation(lesson);
+            localLessonsListTemp.clear();
+            fillTableWidget_Super_Lesson();
+        } else if (operation == "DELETE") {
+            if (QMessageBox::question(this, "确认", "确定删除该课程吗？") == QMessageBox::Yes) {
+                deleteLesson(lessonId);
+                localLessonsListTemp.clear();
+                tableWidget_Super_Lesson->removeRow(row);
+            }
+        }
+    }
+
+    void fillTableWidget_Super_Grade() {
+        tableWidget_Super_Grade->setRowCount(0);
+        QVector<Lesson> ToBeShownLessons;
+        QVector<Lesson> lessons;
+        listLessonsFromLocal(lessons);
+        for (auto &&lesson: lessons) {
+            //检查是否为当前选择学期的课程
+            if (comboBox_Super_Grade_Semester->currentText() == "(全部)" ||
+                lesson.LessonSemester == comboBox_Super_Grade_Semester->currentText()) {
+                // 检查搜索框是否为空
+                if (lineEdit_Super_Grade_Search->text().isEmpty()) {
+                    ToBeShownLessons.append(lesson);
+                } else {
+                    //空格分词
+                    QStringList words = lineEdit_Super_Grade_Search->text().split(" ");
+                    bool isMatched = true;
+                    QVector<QString> classes;
+                    listLessonClassesFromLocal(lesson.Id, classes);
+                    QString classString;
+                    for (auto &&i: classes) {
+                        classString += i + ",";
+                    }
+                    for (auto &&word: words) {
+                        if (lesson.Id.contains(word) || lesson.LessonName.contains(word) ||
+                            lesson.LessonArea.contains(word) || classString.contains(word)) {
+                            continue;
+                        } else {
+                            isMatched = false;
+                            break;
+                        }
+                    }
+                    if (isMatched) {
+                        ToBeShownLessons.append(lesson);
+                    }
+                }
+            }
+        }
+
+        for (auto &&lesson: ToBeShownLessons) {
+            // 插入新行
+            int row = tableWidget_Super_Grade->rowCount();
+            tableWidget_Super_Grade->insertRow(row);
+
+            // 创建表格项并设置文本居中
+            auto *item0 = new QTableWidgetItem(lesson.LessonSemester);
+            item0->setTextAlignment(Qt::AlignCenter);
+            auto *item1 = new QTableWidgetItem(lesson.Id);
+            item1->setTextAlignment(Qt::AlignCenter);
+            auto *item2 = new QTableWidgetItem(lesson.LessonName);
+            item2->setTextAlignment(Qt::AlignCenter);
+            auto *item3 = new QTableWidgetItem(lesson.LessonArea);
+            item3->setTextAlignment(Qt::AlignCenter);
+            QString timeAndLocation;
+            for (auto &&pair: lesson.LessonTimeAndLocations.toStdMap()) {
+                timeAndLocation += pair.first + " " + pair.second[0] + " " + pair.second[1] + ",";
+            }
+            timeAndLocation.chop(1);
+            auto *item4 = new QTableWidgetItem(timeAndLocation);
+            item4->setTextAlignment(Qt::AlignCenter);
+            QVector<QString> classes;
+            listLessonClassesFromLocal(lesson.Id, classes);
+            QString classString;
+            for (auto &&i: classes) {
+                classString += i + ",";
+            }
+            classString.chop(1);
+            auto *item5 = new QTableWidgetItem(classString);
+            item5->setTextAlignment(Qt::AlignCenter);
+            auto *item6 = new QTableWidgetItem(QString::number(lesson.LessonStudents.size()));
+            item6->setTextAlignment(Qt::AlignCenter);
+            auto *label = new QLabel();
+            label->setText(QString("<a href='%1'>查录成绩</a>").arg(lesson.Id));
+            label->setAlignment(Qt::AlignCenter);
+            connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::openLessonGrades);
+
+            tableWidget_Super_Grade->setCellWidget(row, 7, label);
+
+            // 将表格项添加到表格中
+            tableWidget_Super_Grade->setItem(row, 0, item0);
+            tableWidget_Super_Grade->setItem(row, 1, item1);
+            tableWidget_Super_Grade->setItem(row, 2, item2);
+            tableWidget_Super_Grade->setItem(row, 3, item3);
+            tableWidget_Super_Grade->setItem(row, 4, item4);
+            tableWidget_Super_Grade->setItem(row, 5, item5);
+            tableWidget_Super_Grade->setItem(row, 6, item6);
+        }
+        tableWidget_Super_Grade->resizeRowsToContents();
+    }
+
+    void fillTableWidget_Super_Student() {
+        tableWidget_Super_Student->setRowCount(0);
+        QVector<Student> ToBeShownStudents;
+        QVector<Student> students;
+        listStudentsFromLocal(students);
+        for (auto &&student: students) {
+            // 检查搜索框是否为空
+            if (lineEdit_Super_Student_Search->text().isEmpty()) {
+                ToBeShownStudents.append(student);
+            } else {
+                //空格分词
+                QStringList words = lineEdit_Super_Student_Search->text().split(" ");
+                //在学号、姓名、班级、学院、专业中匹配，全部满足则加入
+                bool isMatched = true;
+                for (auto &&word: words) {
+                    if (student.Id.contains(word) || student.Name.contains(word) || student.Class.contains(word) ||
+                        student.College.contains(word) || student.Major.contains(word) || student.DormitoryArea.contains(
+                            word) || student.DormitoryNum.contains(word) || student.PhoneNumber.contains(word)) {
+                        continue;
+                    } else {
+                        isMatched = false;
+                        break;
+                    }
+                }
+                if (isMatched) {
+                    ToBeShownStudents.append(student);
+                }
+            }
+        }
+
+        for (auto &&student: ToBeShownStudents) {
+            // 插入新行
+            int row = tableWidget_Super_Student->rowCount();
+            tableWidget_Super_Student->insertRow(row);
+
+            // 创建表格项并设置文本居中
+            auto *item0 = new QTableWidgetItem(student.Id);
+            item0->setTextAlignment(Qt::AlignCenter);
+            item0->setFlags(item0->flags() & ~Qt::ItemIsEditable);
+            auto *item1 = new QTableWidgetItem(student.Name);
+            item1->setTextAlignment(Qt::AlignCenter);
+            auto *item2 = new QTableWidgetItem(student.Sex);
+            item2->setTextAlignment(Qt::AlignCenter);
+            auto *item3 = new QTableWidgetItem(student.College);
+            item3->setTextAlignment(Qt::AlignCenter);
+            auto *item4 = new QTableWidgetItem(student.Major);
+            item4->setTextAlignment(Qt::AlignCenter);
+            auto *item5 = new QTableWidgetItem(student.Class);
+            item5->setTextAlignment(Qt::AlignCenter);
+            auto *item6 = new QTableWidgetItem(QString::number(student.Age));
+            item6->setTextAlignment(Qt::AlignCenter);
+            auto *item7 = new QTableWidgetItem(student.PhoneNumber);
+            item7->setTextAlignment(Qt::AlignCenter);
+            auto *item8 = new QTableWidgetItem(student.DormitoryArea);
+            item8->setTextAlignment(Qt::AlignCenter);
+            auto *item9 = new QTableWidgetItem(student.DormitoryNum);
+            item9->setTextAlignment(Qt::AlignCenter);
+            auto label = new QLabel();
+            label->setText(QString("<a href='UPDATE/%1/%2'>更新</a> <a href='DELETE/%1/%2'>删除</a>").arg(student.Id).arg(row));
+            label->setAlignment(Qt::AlignCenter);
+            connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::updateOrDeleteStudent);
+
+            tableWidget_Super_Student->setCellWidget(row, 10, label);
+
+            // 将表格项添加到表格中
+            tableWidget_Super_Student->setItem(row, 0, item0);
+            tableWidget_Super_Student->setItem(row, 1, item1);
+            tableWidget_Super_Student->setItem(row, 2, item2);
+            tableWidget_Super_Student->setItem(row, 3, item3);
+            tableWidget_Super_Student->setItem(row, 4, item4);
+            tableWidget_Super_Student->setItem(row, 5, item5);
+            tableWidget_Super_Student->setItem(row, 6, item6);
+            tableWidget_Super_Student->setItem(row, 7, item7);
+            tableWidget_Super_Student->setItem(row, 8, item8);
+            tableWidget_Super_Student->setItem(row, 9, item9);
+
+
+        }
+        tableWidget_Super_Student->resizeRowsToContents();
+    }
+
+    void fillTableWidget_Super_Teacher() {
+        tableWidget_Super_Teacher->setRowCount(0);
+        QVector<Teacher> ToBeShownTeachers;
+        QVector<Teacher> teachers;
+        listTeachersFromLocal(teachers);
+        for (auto &&teacher: teachers) {
+            // 检查搜索框是否为空
+            if (lineEdit_Super_Teacher_Search->text().isEmpty()) {
+                ToBeShownTeachers.append(teacher);
+            } else {
+                //空格分词
+                QStringList words = lineEdit_Super_Teacher_Search->text().split(" ");
+                //在工号、姓名、性别、学院中匹配，全部满足则加入
+                bool isMatched = true;
+                for (auto &&word: words) {
+                    if (teacher.Id.contains(word) || teacher.Name.contains(word) || teacher.Unit.contains(word)) {
+                        continue;
+                    } else {
+                        isMatched = false;
+                        break;
+                    }
+                }
+                if (isMatched) {
+                    ToBeShownTeachers.append(teacher);
+                }
+            }
+        }
+
+        for (auto &&teacher: ToBeShownTeachers) {
+            // 插入新行
+            int row = tableWidget_Super_Teacher->rowCount();
+            tableWidget_Super_Teacher->insertRow(row);
+
+            // 创建表格项并设置文本居中
+            auto *item0 = new QTableWidgetItem(teacher.Id);
+            item0->setTextAlignment(Qt::AlignCenter);
+            item0->setFlags(item0->flags() & ~Qt::ItemIsEditable);
+            auto *item1 = new QTableWidgetItem(teacher.Name);
+            item1->setTextAlignment(Qt::AlignCenter);
+            auto *item2 = new QTableWidgetItem(teacher.Unit);
+            item2->setTextAlignment(Qt::AlignCenter);
+            QString isSuper;
+            if (checkIsSUPER(teacher.Id)) {
+                isSuper = "是";
+            } else {
+                isSuper = "否";
+            }
+            auto *item3 = new QTableWidgetItem(isSuper);
+            item3->setTextAlignment(Qt::AlignCenter);
+            auto *label = new QLabel();
+            label->setText(QString("<a href='UPDATE/%1/%2'>更新</a> <a href='DELETE/%1/%2'>删除</a>").arg(teacher.Id).arg(row));
+            label->setAlignment(Qt::AlignCenter);
+            connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::updateOrDeleteTeacher);
+
+            tableWidget_Super_Teacher->setCellWidget(row, 4, label);
+
+            // 将表格项添加到表格中
+            tableWidget_Super_Teacher->setItem(row, 0, item0);
+            tableWidget_Super_Teacher->setItem(row, 1, item1);
+            tableWidget_Super_Teacher->setItem(row, 2, item2);
+            tableWidget_Super_Teacher->setItem(row, 3, item3);
+        }
+        tableWidget_Super_Teacher->resizeRowsToContents();
+    }
+
+    void updateOrDeleteTeacher(const QString &link) {
+        QStringList linkList = link.split("/");
+        QString operation = linkList[0];
+        QString teacherId = linkList[1];
+        int row = linkList[2].toInt();
+        if (operation == "UPDATE") {
+            Teacher teacher;
+            teacher.Id = tableWidget_Super_Teacher->item(row, 0)->text();
+            teacher.Name = tableWidget_Super_Teacher->item(row, 1)->text();
+            teacher.Unit = tableWidget_Super_Teacher->item(row, 2)->text();
+            updateTeacherInformation(teacher);
+            Auth auth;
+            auth.Account = teacher.Id;
+            auth.AccountType = TEACHER;
+            if (tableWidget_Super_Teacher->item(row, 1)->text().isEmpty()) {
+                QMessageBox::information(this, "提示", "姓名不能为空");
+                return;
+            }
+            if (tableWidget_Super_Teacher->item(row, 3)->text() != "是" &&
+                tableWidget_Super_Teacher->item(row, 3)->text() != "否") {
+                QMessageBox::information(this, "提示", "是否管理员只能为是或否");
+                return;
+            }
+            if (tableWidget_Super_Teacher->item(row, 3)->text() == "是") {
+                auth.IsSuper = 1;
+            } else {
+                auth.IsSuper = 0;
+            }
+            updateAccount(auth);
+            localTeachersListTemp.clear();
+            fillTableWidget_Super_Teacher();
+        } else if (operation == "DELETE") {
+            QMessageBox::StandardButton reply;
+            reply = QMessageBox::question(this, "删除教师", "确定删除工号为" + teacherId + "的教师吗？",
+                                          QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::Yes) {
+                deleteTeacher(teacherId);
+                QMessageBox::information(this, "提示", "删除成功");
+                localTeachersListTemp.clear();
+                fillTableWidget_Super_Teacher();
+            }
+        }
+    }
+
+    void addLessonToTableWidget_Super_Lesson() {
+        tableWidget_Super_Lesson->setRowCount(tableWidget_Super_Lesson->rowCount() + 1);
+        int row = tableWidget_Super_Lesson->rowCount() - 1;
+        for (int i = 0; i < 7; i++) {
+            auto *item = new QTableWidgetItem();
+            item->setTextAlignment(Qt::AlignCenter);
+            tableWidget_Super_Lesson->setItem(row, i, item);
+        }
+        auto label = new QLabel();
+        label->setText(QString("<a href='ADD/%1'>提交</a> <a href='CANCEL/%1'>取消</a>").arg(row));
+        label->setAlignment(Qt::AlignCenter);
+        connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::addOrCancelLesson);
+        tableWidget_Super_Lesson->setCellWidget(row, 7, label);
+    }
+
+    void addOrCancelLesson(const QString &link) {
+        QStringList linkList = link.split("/");
+        QString operation = linkList[0];
+        int row = linkList[1].toInt();
+        if (operation == "ADD") {
+            Lesson lesson;
+            lesson.Id = tableWidget_Super_Lesson->item(row, 0)->text();
+            lesson.LessonName = tableWidget_Super_Lesson->item(row, 1)->text();
+            lesson.TeacherId = tableWidget_Super_Lesson->item(row, 2)->text();
+            lesson.LessonCredits = tableWidget_Super_Lesson->item(row, 3)->text().toInt();
+            lesson.LessonSemester = tableWidget_Super_Lesson->item(row, 4)->text();
+            lesson.LessonArea = tableWidget_Super_Lesson->item(row, 5)->text();
+            QString timeAndLocation = tableWidget_Super_Lesson->item(row, 6)->text();
+            QStringList timeAndLocationList = timeAndLocation.split(",");
+            QMap<QString, QVector<QString>> timeAndLocations;
+            for (auto &&i: timeAndLocationList) {
+                QStringList parts = i.split(" ");
+                QString weeks = parts[0];
+                timeAndLocations.insert(weeks, {parts[1], parts[2]});
+            }
+            lesson.LessonTimeAndLocations = timeAndLocations;
+            updateLessonInformation(lesson);
+            localLessonsListTemp.clear();
+            fillTableWidget_Super_Lesson();
+        } else if (operation == "CANCEL") {
+            tableWidget_Super_Lesson->removeRow(row);
+        }
+    }
+
+    void addTeacherToTableWidget_Super_Teacher() {
+        tableWidget_Super_Teacher->setRowCount(tableWidget_Super_Teacher->rowCount() + 1);
+        int row = tableWidget_Super_Teacher->rowCount() - 1;
+        for (int i = 0; i < 4; i++) {
+            auto *item = new QTableWidgetItem();
+            item->setTextAlignment(Qt::AlignCenter);
+            tableWidget_Super_Teacher->setItem(row, i, item);
+        }
+        auto label = new QLabel();
+        label->setText(QString("<a href='ADD/%1'>提交</a> <a href='CANCEL/%1'>取消</a>").arg(row));
+        label->setAlignment(Qt::AlignCenter);
+        connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::addOrCancelTeacher);
+        tableWidget_Super_Teacher->setCellWidget(row, 4, label);
+    }
+
+    void addOrCancelTeacher(const QString &link) {
+        QStringList linkList = link.split("/");
+        QString operation = linkList[0];
+        int row = linkList[1].toInt();
+        if (operation == "ADD") {
+            Teacher teacher;
+            teacher.Id = tableWidget_Super_Teacher->item(row, 0)->text();
+            teacher.Name = tableWidget_Super_Teacher->item(row, 1)->text();
+            teacher.Unit = tableWidget_Super_Teacher->item(row, 2)->text();
+            updateTeacherInformation(teacher);
+            Auth auth;
+            auth.Account = teacher.Id;
+            auth.AccountType = TEACHER;
+            if (tableWidget_Super_Teacher->item(row, 1)->text().isEmpty()) {
+                QMessageBox::information(this, "提示", "姓名不能为空");
+                return;
+            }
+            if (tableWidget_Super_Teacher->item(row, 3)->text() != "是" &&
+                tableWidget_Super_Teacher->item(row, 3)->text() != "否") {
+                QMessageBox::information(this, "提示", "是否管理员只能为是或否");
+                return;
+            }
+            if (tableWidget_Super_Teacher->item(row, 3)->text() == "是") {
+                auth.IsSuper = 1;
+            } else {
+                auth.IsSuper = 0;
+            }
+            addAccount(auth, teacher.Id);
+            localTeachersListTemp.clear();
+            fillTableWidget_Super_Teacher();
+        } else if (operation == "CANCEL") {
+            tableWidget_Super_Teacher->removeRow(row);
+        }
+    }
+
+    void addStudentToTableWidget_Super_Student() {
+        tableWidget_Super_Student->setRowCount(tableWidget_Super_Student->rowCount() + 1);
+        int row = tableWidget_Super_Student->rowCount() - 1;
+        for (int i = 0; i < 10; i++) {
+            auto *item = new QTableWidgetItem();
+            item->setTextAlignment(Qt::AlignCenter);
+            tableWidget_Super_Student->setItem(row, i, item);
+        }
+        auto label = new QLabel();
+        label->setText(QString("<a href='ADD/%1'>提交</a> <a href='CANCEL/%1'>取消</a>").arg(row));
+        label->setAlignment(Qt::AlignCenter);
+        connect(label, &QLabel::linkActivated, this, &AIMSMainWindow::addOrCancelStudent);
+        tableWidget_Super_Student->setCellWidget(row, 10, label);
+
+
+    }
+
+    void addOrCancelStudent(const QString &link) {
+        QStringList linkList = link.split("/");
+        QString operation = linkList[0];
+        int row = linkList[1].toInt();
+        if (operation == "ADD") {
+            Student student;
+            student.Id = tableWidget_Super_Student->item(row, 0)->text();
+            student.Name = tableWidget_Super_Student->item(row, 1)->text();
+            student.Sex = tableWidget_Super_Student->item(row, 2)->text();
+            if (student.Sex != "男" && student.Sex != "女" && student.Sex != "未知" && student.Sex != "其他") {
+                QMessageBox::information(this, "提示", "性别只能为男、女、未知或其他");
+                return;
+            }
+            student.College = tableWidget_Super_Student->item(row, 3)->text();
+            student.Major = tableWidget_Super_Student->item(row, 4)->text();
+            student.Class = tableWidget_Super_Student->item(row, 5)->text();
+            student.Age = tableWidget_Super_Student->item(row, 6)->text().toInt();
+            student.PhoneNumber = tableWidget_Super_Student->item(row, 7)->text();
+            student.DormitoryArea = tableWidget_Super_Student->item(row, 8)->text();
+            student.DormitoryNum = tableWidget_Super_Student->item(row, 9)->text();
+            updateStudentInformation(student);
+            Auth auth;
+            auth.Account = student.Id;
+            auth.AccountType = STUDENT;
+            if (tableWidget_Super_Student->item(row, 1)->text().isEmpty()) {
+                QMessageBox::information(this, "提示", "姓名不能为空");
+                return;
+            }
+            auth.IsSuper = 0;
+            addAccount(auth, student.Id);
+            localStudentsListTemp.clear();
+            fillTableWidget_Super_Student();
+        } else if (operation == "CANCEL") {
+            tableWidget_Super_Student->removeRow(row);
+        }
+    }
+
+
+    void updateOrDeleteStudent(const QString &link) {
+        QStringList linkList = link.split("/");
+        QString operation = linkList[0];
+        QString studentId = linkList[1];
+        int row = linkList[2].toInt();
+        if (operation == "UPDATE") {
+            Student student;
+            student.Id = tableWidget_Super_Student->item(row, 0)->text();
+            student.Name = tableWidget_Super_Student->item(row, 1)->text();
+            student.Sex = tableWidget_Super_Student->item(row, 2)->text();
+            if (student.Sex != "男" && student.Sex != "女" && student.Sex != "未知" && student.Sex != "其他") {
+                QMessageBox::information(this, "提示", "性别只能为男、女、未知或其他");
+                return;
+            }
+            student.College = tableWidget_Super_Student->item(row, 3)->text();
+            student.Major = tableWidget_Super_Student->item(row, 4)->text();
+            student.Class = tableWidget_Super_Student->item(row, 5)->text();
+            student.Age = tableWidget_Super_Student->item(row, 6)->text().toInt();
+            student.PhoneNumber = tableWidget_Super_Student->item(row, 7)->text();
+            student.DormitoryArea = tableWidget_Super_Student->item(row, 8)->text();
+            student.DormitoryNum = tableWidget_Super_Student->item(row, 9)->text();
+            updateStudentInformation(student);
+            localStudentsListTemp.clear();
+            fillTableWidget_Super_Student();
+        } else if (operation == "DELETE") {
+            QMessageBox::StandardButton reply;
+            reply = QMessageBox::question(this, "删除学生", "确定删除编号为" + studentId + "的学生吗？",
+                                          QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::Yes) {
+                deleteStudent(studentId);
+                QMessageBox::information(this, "提示", "删除成功");
+                localStudentsListTemp.clear();
+                fillTableWidget_Super_Student();
+            }
+        }
+    }
+
     void openLessonStudents(const QString &lessonId) const {
         //QMessageBox::information(this, "提示", "查看学生：" + lessonId);
         StudentListForm *StudentListForm;
@@ -1500,7 +3207,7 @@ signals:
 protected:
     void resizeEvent(QResizeEvent *event) override {
         QMainWindow::resizeEvent(event);  // 调用父类的resizeEvent函数
-        resizeTableWidget();
+        resizeWidget();
     }
 };
 
@@ -1705,6 +3412,48 @@ void ChangePasswordForm::changePassword() {
     parentAIMSMainWindow->changePassword(newPassword);
 
     close();
+}
+
+void StudentListForm::fillTableWidget_LessonChosen() {
+    auto *parentAIMSMainWindow = (AIMSMainWindow *) this->parentWidget();
+    tableWidget_LessonChosenStudent->setRowCount(0);
+    for (auto &i: lessonStudentList) {
+        tableWidget_LessonChosenStudent->insertRow(tableWidget_LessonChosenStudent->rowCount());
+        auto *item0 = new QTableWidgetItem(i);
+        item0->setTextAlignment(Qt::AlignCenter);
+        tableWidget_LessonChosenStudent->setItem(tableWidget_LessonChosenStudent->rowCount() - 1, 0, item0);
+    }
+    tableWidget_LessonChosenStudent->resizeRowsToContents();
+}
+
+void StudentListForm::finishChoosing() {
+    qDebug() << "finishChoosing";
+    auto *parentAIMSMainWindow = (AIMSMainWindow *) this->parentWidget();
+    for (int i = 0; i < tableWidget_LessonChosenStudent->rowCount(); i++) {
+        QString studentId = tableWidget_LessonChosenStudent->item(i, 0)->text();
+        if (!lessonStudentList.contains(studentId)) {
+            parentAIMSMainWindow->addChosenLesson(studentId, currentLessonId);
+        }
+    }
+    //在lessonStudentList中的学生不在tableWidget_LessonChosenStudent中，删除
+    for (auto &i: lessonStudentList) {
+        bool isExist = false;
+        for (int j = 0; j < tableWidget_LessonChosenStudent->rowCount(); j++) {
+            if (i == tableWidget_LessonChosenStudent->item(j, 0)->text()) {
+                isExist = true;
+                break;
+            }
+        }
+        if (!isExist) {
+            parentAIMSMainWindow->deleteChosenLesson(i, currentLessonId);
+        }
+    }
+    parentAIMSMainWindow->localLessonsListTemp.clear();
+    parentAIMSMainWindow->localLessonClassesTemp.clear();
+    parentAIMSMainWindow->localLessonsTemp.clear();
+    parentAIMSMainWindow->fillTableWidget_Super_Lesson_Assign();
+    close();
+
 }
 
 int main(int argc, char *argv[]) {

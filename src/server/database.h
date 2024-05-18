@@ -58,7 +58,7 @@ class Teacher {
 public:
     QString Id; // 教师编号
     QString Name; // 教师姓名
-    QString Uint; // 教师单位
+    QString Unit; // 教师单位
     QVector<QString> TeachingLessons; // 教师教授课程编号
 };
 
@@ -136,6 +136,16 @@ namespace Database {
 
         Status updateStudentLessonGrade(const Grade &grade);
 
+        Status checkIsSUPER(const QString &account, bool &isSuper);
+
+        Status updateLessonChosenStudent(const Lesson &lesson);
+
+        Status deleteChosenLesson(const QString &studentId, const QString &lessonId);
+
+        Status addChosenLesson(const QString &studentId, const QString &lessonId);
+
+        Status addRetake(Lesson &toRetakeLesson, Lesson &needRetakeLesson, const QString &studentId);
+
     private:
         QSqlDatabase db;
 
@@ -148,8 +158,6 @@ namespace Database {
         Status deleteTeachingLesson(const QString &teacherId, const QString &lessonId);
 
         Status checkDatabase();
-
-        Status deleteChosenLesson(const QString &studentId, const QString &lessonId);
 
         int getAuthCount();
 

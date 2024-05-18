@@ -98,7 +98,7 @@ namespace Database {
             CREATE TABLE IF NOT EXISTS teacher_information (
                 TeacherId TEXT NOT NULL UNIQUE,
                 TeacherName TEXT NOT NULL,
-                TeacherUint TEXT,
+                TeacherUnit TEXT,
                 TeachingLessons TEXT NOT NULL DEFAULT '[]',
                 PRIMARY KEY(TeacherId)
             )
@@ -236,20 +236,73 @@ namespace Database {
                 break;
             }
         }
-        if (index == -1) {
-            return LESSON_NOT_FOUND;  // Lesson not found in the chosen lessons
+        if (index != -1) {
+            array.removeAt(index);
+            QJsonDocument newDoc(array);
+            QString newChosenLessonsJson(newDoc.toJson(QJsonDocument::Compact));
+            db.transaction();
+            query.prepare("UPDATE student_information SET ChosenLessons = :chosenLessons WHERE StudentId = :studentId");
+            query.bindValue(":chosenLessons", newChosenLessonsJson);
+            query.bindValue(":studentId", studentId);
+            if (!query.exec()) {
+                qDebug() << "Debug | database.cpp: deleteChosenLesson error: " << query.lastError();
+                db.rollback();
+                return ERROR;
+            }
         }
-        array.removeAt(index);
-        QJsonDocument newDoc(array);
-        QString newChosenLessonsJson(newDoc.toJson(QJsonDocument::Compact));
-        db.transaction();
-        query.prepare("UPDATE student_information SET ChosenLessons = :chosenLessons WHERE StudentId = :studentId");
-        query.bindValue(":chosenLessons", newChosenLessonsJson);
+
+        // 删除学生的成绩信息
+        QString tableName = "lesson_" + lessonId;
+// Check if the record exists
+        query.prepare("SELECT COUNT(*) FROM " + tableName + " WHERE StudentId = :studentId");
         query.bindValue(":studentId", studentId);
-        if (!query.exec()) {
+        if (!query.exec() || !query.next()) {
             qDebug() << "Debug | database.cpp: deleteChosenLesson error: " << query.lastError();
             db.rollback();
             return ERROR;
+        }
+        int count = query.value(0).toInt();
+        if (count > 0) {
+            // If the record exists, delete it
+            query.prepare("DELETE FROM " + tableName + " WHERE StudentId = :studentId");
+            query.bindValue(":studentId", studentId);
+            if (!query.exec()) {
+                qDebug() << "Debug | database.cpp: deleteChosenLesson error: " << query.lastError();
+                db.rollback();
+                return ERROR;
+            }
+        }
+
+        //删除在lesson下的记录
+        query.prepare("SELECT LessonStudents FROM lesson_information WHERE LessonId = :lessonId");
+        query.bindValue(":lessonId", lessonId);
+        if (!query.exec() || !query.next()) {
+            qDebug() << "Debug | database.cpp: deleteChosenLesson error: " << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        QString lessonStudentsJson = query.value("LessonStudents").toString();
+        doc = QJsonDocument::fromJson(lessonStudentsJson.toUtf8(), &jsonError);
+        array = doc.array();
+        index = -1;
+        for (int i = 0; i < array.size(); i++) {
+            if (array[i].toString() == studentId) {
+                index = i;
+                break;
+            }
+        }
+        if (index != -1) {
+            array.removeAt(index);
+            QJsonDocument newDoc = QJsonDocument(array);
+            QString newLessonStudentsJson(newDoc.toJson(QJsonDocument::Compact));
+            query.prepare("UPDATE lesson_information SET LessonStudents = :lessonStudents WHERE LessonId = :lessonId");
+            query.bindValue(":lessonStudents", newLessonStudentsJson);
+            query.bindValue(":lessonId", lessonId);
+            if (!query.exec()) {
+                qDebug() << "Debug | database.cpp: deleteChosenLesson error: " << query.lastError();
+                db.rollback();
+                return ERROR;
+            }
         }
         db.commit();
         return Success;
@@ -258,9 +311,27 @@ namespace Database {
     Status database::updateStudent(const Student &student) {
         db.transaction();
         QSqlQuery query;
-        query.prepare(
-                "INSERT OR REPLACE INTO student_information (StudentId, StudentName, StudentSex, StudentCollege, StudentMajor, StudentClass, StudentAge, StudentPhoneNumber, DormitoryArea, DormitoryNum) "
-                "VALUES (:id, :name, :sex, :college, :major, :class, :age, :phoneNumber, :dormitoryArea, :dormitoryNum)");
+
+        // Check if the student already exists
+        query.prepare("SELECT COUNT(*) FROM student_information WHERE StudentId = :id");
+        query.bindValue(":id", student.Id);
+        if (!query.exec() || !query.next()) {
+            qDebug() << "Debug | database.cpp: updateStudent error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        int count = query.value(0).toInt();
+
+        if (count == 0) {
+            // If the student does not exist, insert a new record
+            query.prepare(
+                    "INSERT INTO student_information (StudentId, StudentName, StudentSex, StudentCollege, StudentMajor, StudentClass, StudentAge, StudentPhoneNumber, DormitoryArea, DormitoryNum) "
+                    "VALUES (:id, :name, :sex, :college, :major, :class, :age, :phoneNumber, :dormitoryArea, :dormitoryNum)");
+        } else {
+            // If the student exists, update the record
+            query.prepare(
+                    "UPDATE student_information SET StudentName = :name, StudentSex = :sex, StudentCollege = :college, StudentMajor = :major, StudentClass = :class, StudentAge = :age, StudentPhoneNumber = :phoneNumber, DormitoryArea = :dormitoryArea, DormitoryNum = :dormitoryNum WHERE StudentId = :id");
+        }
 
         query.bindValue(":name", student.Name);
         query.bindValue(":sex", student.Sex == "男" ? 1 : student.Sex == "女" ? 2 : student.Sex == "其他" ? 9 : 0);
@@ -279,6 +350,7 @@ namespace Database {
             db.rollback();
             return ERROR;
         }
+
         db.commit();
         return Success;
     }
@@ -294,9 +366,27 @@ namespace Database {
             return status;
         }
 
-        query.prepare(
-                "INSERT OR REPLACE INTO lesson_information (LessonId, LessonName, TeacherId, LessonCredits, LessonSemester, LessonArea, LessonTimeAndLocations) "
-                "VALUES (:id, :name, :teacherId, :credits, :area, :semester, :timeAndLocations)");
+        // Check if the lesson already exists
+        query.prepare("SELECT COUNT(*) FROM lesson_information WHERE LessonId = :id");
+        query.bindValue(":id", lesson.Id);
+        if (!query.exec() || !query.next()) {
+            qDebug() << "Debug | database.cpp: updateLessonInformation error: " << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        int count = query.value(0).toInt();
+
+        if (count == 0) {
+            // If the lesson does not exist, insert a new record
+            query.prepare(
+                    "INSERT INTO lesson_information (LessonId, LessonName, TeacherId, LessonCredits, LessonSemester, LessonArea, LessonTimeAndLocations) "
+                    "VALUES (:id, :name, :teacherId, :credits, :semester, :area, :timeAndLocations)");
+        } else {
+            // If the lesson exists, update the record
+            query.prepare(
+                    "UPDATE lesson_information SET LessonName = :name, TeacherId = :teacherId, LessonCredits = :credits, LessonSemester = :semester, LessonArea = :area, LessonTimeAndLocations = :timeAndLocations WHERE LessonId = :id");
+        }
+
         query.bindValue(":id", lesson.Id);
         query.bindValue(":name", lesson.LessonName);
         query.bindValue(":teacherId", lesson.TeacherId);
@@ -536,7 +626,7 @@ namespace Database {
             QSqlRecord record = query.record();
             teacher.Id = record.value("TeacherId").toString();
             teacher.Name = record.value("TeacherName").toString();
-            teacher.Uint = record.value("TeacherUint").toString();
+            teacher.Unit = record.value("TeacherUnit").toString();
 
             QString teachingLessonsJson = record.value("TeachingLessons").toString();
             QJsonParseError jsonError;
@@ -554,16 +644,37 @@ namespace Database {
     Status database::updateTeacher(const Teacher &teacher) {
         db.transaction();
         QSqlQuery query;
-        query.prepare(
-                "INSERT OR REPLACE INTO teacher_information (TeacherId, TeacherName, TeacherUnit) VALUES (:id, :name :unit)");
+
+        // Check if the teacher already exists
+        query.prepare("SELECT COUNT(*) FROM teacher_information WHERE TeacherId = :id");
+        query.bindValue(":id", teacher.Id);
+        if (!query.exec() || !query.next()) {
+            qDebug() << "Debug | database.cpp: updateTeacher error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        int count = query.value(0).toInt();
+
+        if (count == 0) {
+            // If the teacher does not exist, insert a new record
+            query.prepare(
+                    "INSERT INTO teacher_information (TeacherId, TeacherName, TeacherUnit) VALUES (:id, :name, :unit)");
+        } else {
+            // If the teacher exists, update the record
+            query.prepare(
+                    "UPDATE teacher_information SET TeacherName = :name, TeacherUnit = :unit WHERE TeacherId = :id");
+        }
+
         query.bindValue(":id", teacher.Id);
         query.bindValue(":name", teacher.Name);
-        query.bindValue(":unit", teacher.Uint);
+        query.bindValue(":unit", teacher.Unit);
+
         if (!query.exec()) {
             qDebug() << "Debug | database.cpp: updateTeacher error:" << query.lastError();
             db.rollback();
             return ERROR;
         }
+
         db.commit();
         return Success;
     }
@@ -647,6 +758,10 @@ namespace Database {
             db.rollback();
             return ERROR;
         }
+        Status status = deleteAccount(id);
+        if (status != Success) {
+            return status;
+        }
         db.commit();
         return Success;
     }
@@ -701,7 +816,15 @@ namespace Database {
         }
 
         // 删除老师该课程的教课信息
-        Status status = deleteTeachingLesson(query.value("TeacherId").toString(), id);
+        query.prepare("SELECT TeacherId FROM lesson_information WHERE LessonId = :id");
+        query.bindValue(":id", id);
+        if (!query.exec() || !query.next()) {
+            qDebug() << "Debug | database.cpp: deleteLesson error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        QString teacherId = query.value("TeacherId").toString();
+        Status status = deleteTeachingLesson(teacherId, id);
         if (status != Success) {
             return status;
         }
@@ -937,7 +1060,7 @@ namespace Database {
             Teacher teacher;
             teacher.Id = record.value("TeacherId").toString();
             teacher.Name = record.value("TeacherName").toString();
-            teacher.Uint = record.value("TeacherUint").toString();
+            teacher.Unit = record.value("TeacherUnit").toString();
 
             QString teachingLessonsJson = record.value("TeachingLessons").toString();
             QJsonParseError jsonError;
@@ -1305,6 +1428,170 @@ namespace Database {
             db.rollback();
             return ERROR;
         }
+        db.commit();
+        return Success;
+    }
+
+    //同时还要在相应课程表中插入学生信息
+    Status database::addChosenLesson(const QString &studentId, const QString &lessonId) {
+        QSqlQuery query;
+        query.prepare("SELECT ChosenLessons FROM student_information WHERE StudentId = :studentId");
+        query.bindValue(":studentId", studentId);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: addChosenLesson error:" << query.lastError();
+            return ERROR;
+        }
+        if (!query.next()) {
+            return STUDENT_NOT_FOUND;
+        }
+        QString chosenLessonsJson = query.value("ChosenLessons").toString();
+        QJsonParseError jsonError;
+        QJsonDocument doc = QJsonDocument::fromJson(chosenLessonsJson.toUtf8(), &jsonError);
+        QJsonArray array = doc.array();
+
+        // Check if the lesson already exists
+        for (const auto &existingLessonId: array) {
+            if (existingLessonId.toString() == lessonId) {
+                // If the lesson already exists, return Success
+                return Success;
+            }
+        }
+
+        // If the lesson does not exist, add it
+        array.append(lessonId);
+        QJsonDocument newDoc(array);
+        QString newChosenLessonsJson(newDoc.toJson(QJsonDocument::Compact));
+        db.transaction();
+        query.prepare("UPDATE student_information SET ChosenLessons = :chosenLessons WHERE StudentId = :studentId");
+        query.bindValue(":chosenLessons", newChosenLessonsJson);
+        query.bindValue(":studentId", studentId);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: addChosenLesson error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+
+        // 在相应lesson_id表中插入学生信息
+        query.prepare("SELECT LessonStudents FROM lesson_information WHERE LessonId = :lessonId");
+        query.bindValue(":lessonId", lessonId);
+        if (!query.exec() || !query.next()) {
+            qDebug() << "Debug | database.cpp: addChosenLesson error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        QString lessonStudentsJson = query.value("LessonStudents").toString();
+        doc = QJsonDocument::fromJson(lessonStudentsJson.toUtf8(), &jsonError);
+        array = doc.array();
+        array.append(studentId);
+        QJsonDocument newDoc2(array);
+        QString newLessonStudentsJson(newDoc2.toJson(QJsonDocument::Compact));
+        query.prepare("UPDATE lesson_information SET LessonStudents = :lessonStudents WHERE LessonId = :lessonId");
+        query.bindValue(":lessonStudents", newLessonStudentsJson);
+        query.bindValue(":lessonId", lessonId);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: addChosenLesson error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+
+        // 在相应lesson_id表中插入学生成绩信息
+        query.prepare("INSERT INTO lesson_" + lessonId + " (StudentId) VALUES (:studentId)");
+        query.bindValue(":studentId", studentId);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: addChosenLesson error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        db.commit();
+        return Success;
+    }
+
+    Status database::checkIsSUPER(const QString &account, bool &isSuper) {
+        QSqlQuery query;
+        query.prepare("SELECT IsSuper FROM auth WHERE Account = :account");
+        query.bindValue(":account", account);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: checkIsSUPER error:" << query.lastError();
+            return ERROR;
+        }
+        if (!query.next()) {
+            return NOT_FOUND;
+        }
+        isSuper = query.value(0).toBool();
+        return Success;
+    }
+
+    Status database::updateLessonChosenStudent(const Lesson &lesson) {
+        QSqlQuery query;
+        db.transaction();
+        QString lessonStudentsJson;
+        QJsonParseError jsonError;
+        QJsonDocument doc;
+        QJsonArray array;
+        for (auto &&i: lesson.LessonStudents) {
+            array.append(i);
+        }
+        doc = QJsonDocument(array);
+        lessonStudentsJson = doc.toJson(QJsonDocument::Compact);
+        query.prepare("UPDATE lesson_information SET LessonStudents = :lessonStudents WHERE LessonId = :lessonId");
+        query.bindValue(":lessonStudents", lessonStudentsJson);
+        query.bindValue(":lessonId", lesson.Id);
+        if (!query.exec()) {
+            qDebug() << "Debug | database.cpp: updateLessonChosenStudent error:" << query.lastError();
+            db.rollback();
+            return ERROR;
+        }
+        for (auto &&i: lesson.LessonStudents) {
+            Status status = addChosenLesson(i, lesson.Id);
+            if (status != Success) {
+                db.rollback();
+                return status;
+            }
+        }
+        db.commit();
+        return Success;
+    }
+
+    Status database::addRetake(Lesson &toRetakeLesson, Lesson &needRetakeLesson, const QString &studentId) {
+        QSqlQuery query;
+        db.transaction();
+
+        // 1. 将 needRetakeLesson lesson_id 表中 对应学生的 retake 字段设置为 1
+        query.prepare("UPDATE lesson_" + needRetakeLesson.Id + " SET Retake = 1 WHERE StudentId = :studentId");
+        query.bindValue(":studentId", studentId);
+        if (!query.exec()) {
+            db.rollback();
+            return ERROR;
+        }
+
+        // 2. 将 needRetakeLesson lesson_id 表中 对应学生的 retake_lesson_id 字段添加 toRetakeLesson.Id
+        query.prepare("UPDATE lesson_" + needRetakeLesson.Id +
+                      " SET RetakeLessonId = array_append(RetakeLessonId, :toRetakeLessonId) WHERE StudentId = :studentId");
+        query.bindValue(":toRetakeLessonId", toRetakeLesson.Id);
+        query.bindValue(":studentId", studentId);
+        if (!query.exec()) {
+            db.rollback();
+            return ERROR;
+        }
+
+        // 3. 将 needRetakeLesson lesson_id 表中 对应学生的 retake_semesters 字段添加 toRetakeLesson.LessonSemester
+        query.prepare("UPDATE lesson_" + needRetakeLesson.Id +
+                      " SET RetakeSemesters = array_append(RetakeSemesters, :toRetakeLessonSemester) WHERE StudentId = :studentId");
+        query.bindValue(":toRetakeLessonSemester", toRetakeLesson.LessonSemester);
+        query.bindValue(":studentId", studentId);
+        if (!query.exec()) {
+            db.rollback();
+            return ERROR;
+        }
+
+        // 4. 将 toRetakeLesson lesson_id 表中 对应学生的 retake 字段设置为 2
+        query.prepare("UPDATE lesson_" + toRetakeLesson.Id + " SET Retake = 2 WHERE StudentId = :studentId");
+        query.bindValue(":studentId", studentId);
+        if (!query.exec()) {
+            db.rollback();
+            return ERROR;
+        }
+
         db.commit();
         return Success;
     }
