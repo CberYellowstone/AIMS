@@ -1038,11 +1038,13 @@ public:
             label_NameId->setText("学生 " + currentStudent.Name + " " + currentStudent.Id);
             label_Unit->setText(currentStudent.College);
             label_ClassTitle->show();
+            label_Class->show();
             label_Class->setText(currentStudent.Class);
         } else {
             getTeacherByIdFromLocal(account, currentTeacher);
             label_NameId->setText("教师 " + currentTeacher.Name + " " + currentTeacher.Id);
             label_Unit->setText(currentTeacher.Unit);
+            label_ClassTitle->hide();
             label_ClassTitle->hide();
         }
     }
@@ -2307,7 +2309,7 @@ public slots:
             }
             QString Type;
             if (grade.Retake == 2) {
-                Type = "重修" + QString::number(RetakeLessons[lesson.Id]);
+                Type = "重修" + QString::number(RetakeLessons[lesson.Id] + 1);
             } else {
                 Type = "正常考试";
             }

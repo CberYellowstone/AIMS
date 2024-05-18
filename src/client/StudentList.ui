@@ -1,0 +1,756 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+    <class>StudentListForm</class>
+    <widget class="QMainWindow" name="StudentListForm">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>685</width>
+                <height>750</height>
+            </rect>
+        </property>
+        <property name="minimumSize">
+            <size>
+                <width>685</width>
+                <height>750</height>
+            </size>
+        </property>
+        <property name="maximumSize">
+            <size>
+                <width>685</width>
+                <height>16777215</height>
+            </size>
+        </property>
+        <property name="palette">
+            <palette>
+                <active>
+                    <colorrole role="Window">
+                        <brush brushstyle="SolidPattern">
+                            <color alpha="255">
+                                <red>238</red>
+                                <green>247</green>
+                                <blue>253</blue>
+                            </color>
+                        </brush>
+                    </colorrole>
+                </active>
+                <inactive>
+                    <colorrole role="Window">
+                        <brush brushstyle="SolidPattern">
+                            <color alpha="255">
+                                <red>238</red>
+                                <green>247</green>
+                                <blue>253</blue>
+                            </color>
+                        </brush>
+                    </colorrole>
+                </inactive>
+                <disabled>
+                    <colorrole role="Base">
+                        <brush brushstyle="SolidPattern">
+                            <color alpha="255">
+                                <red>238</red>
+                                <green>247</green>
+                                <blue>253</blue>
+                            </color>
+                        </brush>
+                    </colorrole>
+                    <colorrole role="Window">
+                        <brush brushstyle="SolidPattern">
+                            <color alpha="255">
+                                <red>238</red>
+                                <green>247</green>
+                                <blue>253</blue>
+                            </color>
+                        </brush>
+                    </colorrole>
+                </disabled>
+            </palette>
+        </property>
+        <property name="windowTitle">
+            <string>学生列表</string>
+        </property>
+        <widget class="QWidget" name="centralwidget">
+            <layout class="QGridLayout" name="gridLayout">
+                <item row="0" column="0">
+                    <widget class="QStackedWidget" name="stackedWidget">
+                        <property name="palette">
+                            <palette>
+                                <active>
+                                    <colorrole role="Window">
+                                        <brush brushstyle="SolidPattern">
+                                            <color alpha="255">
+                                                <red>238</red>
+                                                <green>247</green>
+                                                <blue>253</blue>
+                                            </color>
+                                        </brush>
+                                    </colorrole>
+                                </active>
+                                <inactive>
+                                    <colorrole role="Window">
+                                        <brush brushstyle="SolidPattern">
+                                            <color alpha="255">
+                                                <red>238</red>
+                                                <green>247</green>
+                                                <blue>253</blue>
+                                            </color>
+                                        </brush>
+                                    </colorrole>
+                                </inactive>
+                                <disabled>
+                                    <colorrole role="Base">
+                                        <brush brushstyle="SolidPattern">
+                                            <color alpha="255">
+                                                <red>238</red>
+                                                <green>247</green>
+                                                <blue>253</blue>
+                                            </color>
+                                        </brush>
+                                    </colorrole>
+                                    <colorrole role="Window">
+                                        <brush brushstyle="SolidPattern">
+                                            <color alpha="255">
+                                                <red>238</red>
+                                                <green>247</green>
+                                                <blue>253</blue>
+                                            </color>
+                                        </brush>
+                                    </colorrole>
+                                </disabled>
+                            </palette>
+                        </property>
+                        <property name="currentIndex">
+                            <number>2</number>
+                        </property>
+                        <widget class="QWidget" name="page_LessonStudent">
+                            <layout class="QGridLayout" name="gridLayout_3">
+                                <item row="0" column="0">
+                                    <layout class="QGridLayout" name="gridLayout_2">
+                                        <item row="0" column="0">
+                                            <widget class="QLineEdit" name="lineEdit_Search_LessonStudent">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>0</width>
+                                                        <height>31</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>11</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="placeholderText">
+                                                    <string>学号/学生姓名/上课班级/上课院系/上课专业/考试性质</string>
+                                                </property>
+                                                <property name="clearButtonEnabled">
+                                                    <bool>true</bool>
+                                                </property>
+                                            </widget>
+                                        </item>
+                                        <item row="0" column="1">
+                                            <widget class="QPushButton" name="pushButton_Search_LessonStudent">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>0</width>
+                                                        <height>31</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>11</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true"/>
+                                                </property>
+                                                <property name="text">
+                                                    <string>搜索</string>
+                                                </property>
+                                                <property name="checkable">
+                                                    <bool>false</bool>
+                                                </property>
+                                            </widget>
+                                        </item>
+                                        <item row="1" column="0" colspan="2">
+                                            <widget class="QTableWidget" name="tableWidget_LessonStudent">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>650</width>
+                                                        <height>660</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>10</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true">background-color: rgb(246, 249, 252);</string>
+                                                </property>
+                                                <property name="editTriggers">
+                                                    <set>QAbstractItemView::NoEditTriggers</set>
+                                                </property>
+                                                <property name="sortingEnabled">
+                                                    <bool>true</bool>
+                                                </property>
+                                                <property name="cornerButtonEnabled">
+                                                    <bool>false</bool>
+                                                </property>
+                                                <attribute name="horizontalHeaderCascadingSectionResizes">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="horizontalHeaderStretchLastSection">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="verticalHeaderVisible">
+                                                    <bool>false</bool>
+                                                </attribute>
+                                                <attribute name="verticalHeaderStretchLastSection">
+                                                    <bool>false</bool>
+                                                </attribute>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学号</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学生姓名</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学生班级</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学生院系</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学生专业</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>考试性质</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                            </widget>
+                                        </item>
+                                    </layout>
+                                </item>
+                            </layout>
+                        </widget>
+                        <widget class="QWidget" name="page_LessonGrade">
+                            <layout class="QGridLayout" name="gridLayout_5">
+                                <item row="0" column="0">
+                                    <layout class="QGridLayout" name="gridLayout_4">
+                                        <item row="0" column="0">
+                                            <widget class="QLineEdit" name="lineEdit_Search_LessonGrade">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>0</width>
+                                                        <height>31</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>11</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="placeholderText">
+                                                    <string>学号/学生姓名/上课班级/上课院系/上课专业/考试性质</string>
+                                                </property>
+                                                <property name="clearButtonEnabled">
+                                                    <bool>true</bool>
+                                                </property>
+                                            </widget>
+                                        </item>
+                                        <item row="0" column="1">
+                                            <widget class="QPushButton" name="pushButton_Search_LessonGrade">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>0</width>
+                                                        <height>31</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>11</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true"/>
+                                                </property>
+                                                <property name="text">
+                                                    <string>搜索</string>
+                                                </property>
+                                                <property name="checkable">
+                                                    <bool>false</bool>
+                                                </property>
+                                            </widget>
+                                        </item>
+                                        <item row="1" column="0" colspan="2">
+                                            <widget class="QTableWidget" name="tableWidget_LessonGrade">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>650</width>
+                                                        <height>660</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>10</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true">background-color: rgb(246, 249, 252);</string>
+                                                </property>
+                                                <property name="editTriggers">
+                                                    <set>QAbstractItemView::DoubleClicked</set>
+                                                </property>
+                                                <property name="sortingEnabled">
+                                                    <bool>true</bool>
+                                                </property>
+                                                <property name="cornerButtonEnabled">
+                                                    <bool>false</bool>
+                                                </property>
+                                                <attribute name="horizontalHeaderCascadingSectionResizes">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="horizontalHeaderStretchLastSection">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="verticalHeaderVisible">
+                                                    <bool>false</bool>
+                                                </attribute>
+                                                <attribute name="verticalHeaderStretchLastSection">
+                                                    <bool>false</bool>
+                                                </attribute>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学号</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学生姓名</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学生班级</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>总成绩</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>平时成绩</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>期末成绩</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>考试性质</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                            </widget>
+                                        </item>
+                                    </layout>
+                                </item>
+                            </layout>
+                        </widget>
+                        <widget class="QWidget" name="page_LessonChosen">
+                            <layout class="QGridLayout" name="gridLayout_7">
+                                <item row="0" column="0">
+                                    <layout class="QGridLayout" name="gridLayout_6">
+                                        <item row="0" column="0">
+                                            <widget class="QPushButton" name="pushButton_Add">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>0</width>
+                                                        <height>31</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>11</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true"/>
+                                                </property>
+                                                <property name="text">
+                                                    <string>添加</string>
+                                                </property>
+                                                <property name="checkable">
+                                                    <bool>false</bool>
+                                                </property>
+                                            </widget>
+                                        </item>
+                                        <item row="0" column="1">
+                                            <widget class="QPushButton" name="pushButton_Delete">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>0</width>
+                                                        <height>31</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>11</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true"/>
+                                                </property>
+                                                <property name="text">
+                                                    <string>删除</string>
+                                                </property>
+                                                <property name="checkable">
+                                                    <bool>false</bool>
+                                                </property>
+                                            </widget>
+                                        </item>
+                                        <item row="0" column="2">
+                                            <widget class="QPushButton" name="pushButton_Finish">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>0</width>
+                                                        <height>31</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>11</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true"/>
+                                                </property>
+                                                <property name="text">
+                                                    <string>完成</string>
+                                                </property>
+                                                <property name="checkable">
+                                                    <bool>false</bool>
+                                                </property>
+                                            </widget>
+                                        </item>
+                                        <item row="1" column="0" colspan="3">
+                                            <widget class="QTableWidget" name="tableWidget_LessonChosenStudent">
+                                                <property name="minimumSize">
+                                                    <size>
+                                                        <width>650</width>
+                                                        <height>660</height>
+                                                    </size>
+                                                </property>
+                                                <property name="font">
+                                                    <font>
+                                                        <pointsize>10</pointsize>
+                                                    </font>
+                                                </property>
+                                                <property name="styleSheet">
+                                                    <string notr="true">background-color: rgb(246, 249, 252);</string>
+                                                </property>
+                                                <property name="editTriggers">
+                                                    <set>QAbstractItemView::DoubleClicked</set>
+                                                </property>
+                                                <property name="sortingEnabled">
+                                                    <bool>true</bool>
+                                                </property>
+                                                <property name="cornerButtonEnabled">
+                                                    <bool>false</bool>
+                                                </property>
+                                                <attribute name="horizontalHeaderCascadingSectionResizes">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="horizontalHeaderStretchLastSection">
+                                                    <bool>true</bool>
+                                                </attribute>
+                                                <attribute name="verticalHeaderVisible">
+                                                    <bool>false</bool>
+                                                </attribute>
+                                                <attribute name="verticalHeaderStretchLastSection">
+                                                    <bool>false</bool>
+                                                </attribute>
+                                                <column>
+                                                    <property name="text">
+                                                        <string>学号</string>
+                                                    </property>
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>10</pointsize>
+                                                        </font>
+                                                    </property>
+                                                </column>
+                                            </widget>
+                                        </item>
+                                    </layout>
+                                </item>
+                            </layout>
+                        </widget>
+                    </widget>
+                </item>
+            </layout>
+        </widget>
+    </widget>
+    <resources/>
+    <connections>
+        <connection>
+            <sender>lineEdit_Search_LessonStudent</sender>
+            <signal>editingFinished()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>fillTableWidget_LessonStudent()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>198</x>
+                    <y>28</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>283</x>
+                    <y>6</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>lineEdit_Search_LessonStudent</sender>
+            <signal>returnPressed()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>fillTableWidget_LessonStudent()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>467</x>
+                    <y>36</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>527</x>
+                    <y>5</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>pushButton_Search_LessonStudent</sender>
+            <signal>clicked()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>fillTableWidget_LessonStudent()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>622</x>
+                    <y>25</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>680</x>
+                    <y>48</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>lineEdit_Search_LessonGrade</sender>
+            <signal>returnPressed()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>fillTableWidget_LessonGrade()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>86</x>
+                    <y>25</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>2</x>
+                    <y>22</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>lineEdit_Search_LessonGrade</sender>
+            <signal>editingFinished()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>fillTableWidget_LessonGrade()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>112</x>
+                    <y>38</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>3</x>
+                    <y>74</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>pushButton_Search_LessonGrade</sender>
+            <signal>clicked()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>fillTableWidget_LessonGrade()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>615</x>
+                    <y>32</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>678</x>
+                    <y>37</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>tableWidget_LessonGrade</sender>
+            <signal>cellDoubleClicked(int,int)</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>onTableWidgetLessonGradeCellDoubleClicked(int,int)</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>250</x>
+                    <y>176</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>682</x>
+                    <y>191</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>pushButton_Add</sender>
+            <signal>clicked()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>addStudentToLesson()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>98</x>
+                    <y>34</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>86</x>
+                    <y>4</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>pushButton_Delete</sender>
+            <signal>clicked()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>removeStudentFromLesson()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>382</x>
+                    <y>39</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>8</x>
+                    <y>114</y>
+                </hint>
+            </hints>
+        </connection>
+        <connection>
+            <sender>pushButton_Finish</sender>
+            <signal>clicked()</signal>
+            <receiver>StudentListForm</receiver>
+            <slot>finishChoosing()</slot>
+            <hints>
+                <hint type="sourcelabel">
+                    <x>599</x>
+                    <y>42</y>
+                </hint>
+                <hint type="destinationlabel">
+                    <x>681</x>
+                    <y>78</y>
+                </hint>
+            </hints>
+        </connection>
+    </connections>
+    <slots>
+        <slot>fillTableWidget_LessonStudent()</slot>
+        <slot>onTableWidgetLessonGradeCellDoubleClicked(int,int)</slot>
+        <slot>fillTableWidget_LessonGrade()</slot>
+        <slot>doCheckAndSendGrade()</slot>
+        <slot>addStudentToLesson()</slot>
+        <slot>removeStudentFromLesson()</slot>
+        <slot>finishChoosing()</slot>
+    </slots>
+</ui>
